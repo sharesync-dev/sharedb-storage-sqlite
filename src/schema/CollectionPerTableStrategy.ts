@@ -613,53 +613,74 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
     }
   }
 
-  async updateInventoryItem(db: DatabaseConnection, collection: string, docId: string, version: number | string, operation: string, callback?: StorageCallback): Promise<void> {
+  async upsertInventoryItem(db: DatabaseConnection, collection: string, docId: string, version: number | string, callback?: StorageCallback): Promise<void> {
     try {
       const now = Date.now();
 
-      if (operation === 'add' || operation === 'update') {
-        // Check for version type consistency
-        const existing = await db.getFirstAsync(
-          'SELECT version_num, version_str FROM sharedb_inventory WHERE collection = ? AND doc_id = ?',
-          [collection, docId]
-        );
+      // Check for version type consistency
+      const existing = await db.getFirstAsync(
+        'SELECT version_num, version_str FROM sharedb_inventory WHERE collection = ? AND doc_id = ?',
+        [collection, docId]
+      );
 
-        if (existing) {
-          const existingIsString = (existing.version_str !== null);
-          const newIsString = (typeof version === 'string');
+      if (existing) {
+        const existingIsString = (existing.version_str !== null);
+        const newIsString = (typeof version === 'string');
 
-          if (existingIsString !== newIsString) {
-            throw new Error(
-              `Version type mismatch: Cannot store ${collection}/${docId} with ${typeof version} version ${version} when existing version is ${existingIsString ? 'string' : 'number'}`
-            );
-          }
-        }
-
-        // Insert or update with appropriate version column
-        if (typeof version === 'string') {
-          await this.runAsync(db,
-            'INSERT OR REPLACE INTO sharedb_inventory (collection, doc_id, version_num, version_str, has_pending, updated_at) VALUES (?, ?, NULL, ?, 0, ?)',
-            [collection, docId, version, now]
-          );
-        } else {
-          await this.runAsync(db,
-            'INSERT OR REPLACE INTO sharedb_inventory (collection, doc_id, version_num, version_str, has_pending, updated_at) VALUES (?, ?, ?, NULL, 0, ?)',
-            [collection, docId, version, now]
+        if (existingIsString !== newIsString) {
+          throw new Error(
+            `Version type mismatch: Cannot store ${collection}/${docId} with ${typeof version} version ${version} when existing version is ${existingIsString ? 'string' : 'number'}`
           );
         }
-      } else if (operation === 'remove') {
-        // Delete inventory item
+      }
+
+      // Insert or update with appropriate version column
+      if (typeof version === 'string') {
         await this.runAsync(db,
-          'DELETE FROM sharedb_inventory WHERE collection = ? AND doc_id = ?',
-          [collection, docId]
+          'INSERT OR REPLACE INTO sharedb_inventory (collection, doc_id, version_num, version_str, has_pending, updated_at) VALUES (?, ?, NULL, ?, 0, ?)',
+          [collection, docId, version, now]
         );
       } else {
-        throw new Error('Invalid inventory operation: ' + operation);
+        await this.runAsync(db,
+          'INSERT OR REPLACE INTO sharedb_inventory (collection, doc_id, version_num, version_str, has_pending, updated_at) VALUES (?, ?, ?, NULL, 0, ?)',
+          [collection, docId, version, now]
+        );
       }
 
       callback?.();
     } catch (error) {
       callback?.(error as Error);
+      throw error;
+    }
+  }
+
+  async deleteInventoryItem(db: DatabaseConnection, collection: string, docId: string, callback?: StorageCallback): Promise<void> {
+    try {
+      await this.runAsync(db,
+        'DELETE FROM sharedb_inventory WHERE collection = ? AND doc_id = ?',
+        [collection, docId]
+      );
+
+      callback?.();
+    } catch (error) {
+      callback?.(error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * @deprecated Use upsertInventoryItem or deleteInventoryItem instead
+   */
+  async updateInventoryItem(db: DatabaseConnection, collection: string, docId: string, version: number | string, operation: string, callback?: StorageCallback): Promise<void> {
+    // Delegate to the appropriate new method
+    if (operation === 'add' || operation === 'update') {
+      return this.upsertInventoryItem(db, collection, docId, version, callback);
+    } else if (operation === 'remove') {
+      return this.deleteInventoryItem(db, collection, docId, callback);
+    } else {
+      const error = new Error('Invalid inventory operation: ' + operation);
+      callback?.(error);
+      throw error;
     }
   }
 

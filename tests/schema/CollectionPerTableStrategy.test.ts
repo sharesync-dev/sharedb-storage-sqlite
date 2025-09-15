@@ -388,7 +388,7 @@ describe('CollectionPerTableStrategy', () => {
     it('should update inventory item', async () => {
       await strategy.initializeSchema(db);
 
-      await strategy.updateInventoryItem(db, 'terms', 'doc1', 5, 'update');
+      await strategy.upsertInventoryItem(db, 'terms', 'doc1', 5);
 
       const history = db.getSqlHistory();
       const updateStatements = history.filter(h =>

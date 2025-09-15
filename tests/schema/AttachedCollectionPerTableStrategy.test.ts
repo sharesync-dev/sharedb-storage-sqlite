@@ -235,7 +235,7 @@ describe('AttachedCollectionPerTableStrategy', () => {
       await strategy.initializeSchema(db);
 
       // Update inventory
-      await strategy.updateInventoryItem(db, 'terms', 'doc-1', 5, 'update');
+      await strategy.upsertInventoryItem(db, 'terms', 'doc-1', 5);
 
       const history = db.getSqlHistory();
       const inventoryUpdates = history.filter(h =>

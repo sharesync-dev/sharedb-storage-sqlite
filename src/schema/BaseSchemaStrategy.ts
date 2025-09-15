@@ -174,7 +174,29 @@ export abstract class BaseSchemaStrategy {
   abstract readInventory(db: DatabaseConnection, callback?: StorageCallback<StorageRecord>): Promise<StorageRecord>;
 
   /**
+   * Add or update inventory for a specific collection/document
+   */
+  abstract upsertInventoryItem(
+    db: DatabaseConnection,
+    collection: string,
+    docId: string,
+    version: number | string,
+    callback?: StorageCallback
+  ): Promise<void>;
+
+  /**
+   * Remove a document from inventory
+   */
+  abstract deleteInventoryItem(
+    db: DatabaseConnection,
+    collection: string,
+    docId: string,
+    callback?: StorageCallback
+  ): Promise<void>;
+
+  /**
    * Update inventory for a specific collection/document
+   * @deprecated Use upsertInventoryItem or deleteInventoryItem instead
    */
   abstract updateInventoryItem(
     db: DatabaseConnection,

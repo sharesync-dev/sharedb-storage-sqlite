@@ -79,6 +79,11 @@ export declare class CollectionPerTableStrategy extends BaseSchemaStrategy {
     deleteRecord(db: DatabaseConnection, type: string, collection: string | null, id: string, callback?: StorageCallback): Promise<void>;
     initializeInventory(db: DatabaseConnection, callback?: StorageCallback<StorageRecord>): Promise<StorageRecord>;
     readInventory(db: DatabaseConnection, callback?: StorageCallback<StorageRecord>): Promise<StorageRecord>;
+    upsertInventoryItem(db: DatabaseConnection, collection: string, docId: string, version: number | string, callback?: StorageCallback): Promise<void>;
+    deleteInventoryItem(db: DatabaseConnection, collection: string, docId: string, callback?: StorageCallback): Promise<void>;
+    /**
+     * @deprecated Use upsertInventoryItem or deleteInventoryItem instead
+     */
     updateInventoryItem(db: DatabaseConnection, collection: string, docId: string, version: number | string, operation: string, callback?: StorageCallback): Promise<void>;
     getInventoryType(): string;
     deleteAllTables(db: DatabaseConnection, callback?: StorageCallback): Promise<void>;

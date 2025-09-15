@@ -16,7 +16,8 @@ export { SqliteStorage } from './SqliteStorage';
 export { BaseSchemaStrategy } from './schema/BaseSchemaStrategy';
 export { CollectionPerTableStrategy } from './schema/CollectionPerTableStrategy';
 export { AttachedCollectionPerTableStrategy } from './schema/AttachedCollectionPerTableStrategy';
-// export { DefaultSchemaStrategy } from './schema/DefaultSchemaStrategy';
+// DefaultSchemaStrategy is plain JS, require it directly
+export const DefaultSchemaStrategy = require('../lib/schema/DefaultSchemaStrategy');
 
 // Export utilities and helpers
 // export * from './utils';
