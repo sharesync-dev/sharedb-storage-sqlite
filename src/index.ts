@@ -15,9 +15,7 @@ export { SqliteStorage } from './SqliteStorage';
 // Export schema strategies
 export { BaseSchemaStrategy } from './schema/BaseSchemaStrategy';
 export { CollectionPerTableStrategy } from './schema/CollectionPerTableStrategy';
-
-// Future exports will include:
-// export { AttachedCollectionPerTableStrategy } from './schema/AttachedCollectionPerTableStrategy';
+export { AttachedCollectionPerTableStrategy } from './schema/AttachedCollectionPerTableStrategy';
 // export { DefaultSchemaStrategy } from './schema/DefaultSchemaStrategy';
 
 // Export utilities and helpers

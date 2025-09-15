@@ -9,5 +9,6 @@ export * from './interfaces';
 export { SqliteStorage } from './SqliteStorage';
 export { BaseSchemaStrategy } from './schema/BaseSchemaStrategy';
 export { CollectionPerTableStrategy } from './schema/CollectionPerTableStrategy';
+export { AttachedCollectionPerTableStrategy } from './schema/AttachedCollectionPerTableStrategy';
 export declare const VERSION = "1.0.0";
 //# sourceMappingURL=index.d.ts.map
