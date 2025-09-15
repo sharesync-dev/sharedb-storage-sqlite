@@ -365,19 +365,27 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
     try {
       // Process docs records
       if (recordsByType.docs) {
-        const docsRecords = Array.isArray(recordsByType.docs) ? recordsByType.docs : [recordsByType.docs];
+        // Handle different formats of docs
+        let recordsByCollection: Record<string, StorageRecord[]> = {};
 
-        // Group records by collection
-        const recordsByCollection: Record<string, StorageRecord[]> = {};
-        for (const record of docsRecords) {
-          if (!record.payload || !record.payload.collection) {
-            throw new Error('Record missing required collection field in payload');
+        if (typeof recordsByType.docs === 'object' && !Array.isArray(recordsByType.docs) && !(recordsByType.docs as any).id) {
+          // docs is already a dictionary of collections
+          recordsByCollection = recordsByType.docs as Record<string, StorageRecord[]>;
+        } else {
+          // docs is a single record or array of records
+          const docsRecords = Array.isArray(recordsByType.docs) ? recordsByType.docs : [recordsByType.docs as StorageRecord];
+
+          // Group records by collection
+          for (const record of docsRecords) {
+            const collection = record.collection || record.payload?.collection;
+            if (!collection) {
+              throw new Error('Record missing required collection field');
+            }
+            if (!recordsByCollection[collection]) {
+              recordsByCollection[collection] = [];
+            }
+            recordsByCollection[collection].push(record);
           }
-          const collection = record.payload.collection;
-          if (!recordsByCollection[collection]) {
-            recordsByCollection[collection] = [];
-          }
-          recordsByCollection[collection].push(record);
         }
 
         // Write to each collection's table

@@ -22,7 +22,7 @@ export interface StorageRecord {
 }
 
 export interface StorageRecords {
-  docs?: StorageRecord | StorageRecord[];
+  docs?: StorageRecord | StorageRecord[] | Record<string, StorageRecord[]>;
   meta?: StorageRecord | StorageRecord[];
 }
 
@@ -47,8 +47,8 @@ export interface ArrayProjectionConfig {
 }
 
 export interface CollectionConfig {
-  indexes: string[];
-  encryptedFields: string[];
+  indexes?: string[];
+  encryptedFields?: string[];
   projections?: ArrayProjectionConfig[];
 }
 

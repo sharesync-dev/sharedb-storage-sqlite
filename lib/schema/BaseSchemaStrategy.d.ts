@@ -19,7 +19,7 @@ export interface StorageRecord {
     encrypted_payload?: string;
 }
 export interface StorageRecords {
-    docs?: StorageRecord | StorageRecord[];
+    docs?: StorageRecord | StorageRecord[] | Record<string, StorageRecord[]>;
     meta?: StorageRecord | StorageRecord[];
 }
 export type StorageCallback<T = any> = (error?: Error | null, result?: T) => void;
@@ -40,8 +40,8 @@ export interface ArrayProjectionConfig {
     primaryKey: string[];
 }
 export interface CollectionConfig {
-    indexes: string[];
-    encryptedFields: string[];
+    indexes?: string[];
+    encryptedFields?: string[];
     projections?: ArrayProjectionConfig[];
 }
 export declare abstract class BaseSchemaStrategy {
