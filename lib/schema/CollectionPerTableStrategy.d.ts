@@ -61,14 +61,30 @@ export declare class CollectionPerTableStrategy extends BaseSchemaStrategy {
      * Get table name for a collection
      */
     getTableName(collection: string): string;
+    /**
+     * Write records to collection-specific tables
+     */
     writeRecords(db: DatabaseConnection, recordsByType: StorageRecords, callback?: StorageCallback): Promise<void>;
+    /**
+     * Read a single record from a collection-specific table
+     */
     readRecord(db: DatabaseConnection, type: string, collection: string | null, id: string, callback?: StorageCallback<StorageRecord | null>): Promise<StorageRecord | null>;
+    /**
+     * Read all records of a given type
+     */
     readAllRecords(db: DatabaseConnection, type: string, collection: string | null, callback?: StorageCallback<StorageRecord[]>): Promise<StorageRecord[]>;
+    /**
+     * Delete a record from a collection-specific table
+     */
     deleteRecord(db: DatabaseConnection, type: string, collection: string | null, id: string, callback?: StorageCallback): Promise<void>;
     initializeInventory(db: DatabaseConnection, callback?: StorageCallback<StorageRecord>): Promise<StorageRecord>;
     readInventory(db: DatabaseConnection, callback?: StorageCallback<StorageRecord>): Promise<StorageRecord>;
     updateInventoryItem(db: DatabaseConnection, collection: string, docId: string, version: number | string, operation: string, callback?: StorageCallback): Promise<void>;
     getInventoryType(): string;
     deleteAllTables(db: DatabaseConnection, callback?: StorageCallback): Promise<void>;
+    /**
+     * Ensure a collection table exists before writing to it
+     */
+    ensureCollectionTable(db: DatabaseConnection, collection: string): Promise<void>;
 }
 //# sourceMappingURL=CollectionPerTableStrategy.d.ts.map

@@ -358,27 +358,200 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
     return collection.replace(/[^a-zA-Z0-9_]/g, '_');
   }
 
-  // Placeholder implementations for abstract methods
-  // These need to be fully implemented based on the JavaScript version
-
+  /**
+   * Write records to collection-specific tables
+   */
   async writeRecords(db: DatabaseConnection, recordsByType: StorageRecords, callback?: StorageCallback): Promise<void> {
-    // TODO: Implement based on JavaScript version
-    throw new Error('Method not implemented.');
+    try {
+      // Process docs records
+      if (recordsByType.docs) {
+        const docsRecords = Array.isArray(recordsByType.docs) ? recordsByType.docs : [recordsByType.docs];
+
+        // Group records by collection
+        const recordsByCollection: Record<string, StorageRecord[]> = {};
+        for (const record of docsRecords) {
+          if (!record.payload || !record.payload.collection) {
+            throw new Error('Record missing required collection field in payload');
+          }
+          const collection = record.payload.collection;
+          if (!recordsByCollection[collection]) {
+            recordsByCollection[collection] = [];
+          }
+          recordsByCollection[collection].push(record);
+        }
+
+        // Write to each collection's table
+        for (const [collection, records] of Object.entries(recordsByCollection)) {
+          // Ensure table exists
+          await this.ensureCollectionTable(db, collection);
+          const tableName = this.getTableName(collection);
+
+          for (const record of records) {
+            // Write record
+            await this.runAsync(db,
+              'INSERT OR REPLACE INTO ' + tableName + ' (id, collection, data) VALUES (?, ?, ?)',
+              [record.id, collection, JSON.stringify(record)]
+            );
+
+            // Update projections
+            await this.updateProjections(db, collection, record, null);
+
+            // Update inventory
+            const version = record.payload?.v || 1;
+            const hasPending = (record.payload?.pendingOps || record.payload?.inflightOp) ? 1 : 0;
+
+            if (typeof version === 'string') {
+              await this.runAsync(db,
+                'INSERT OR REPLACE INTO sharedb_inventory (collection, doc_id, version_num, version_str, has_pending, updated_at) VALUES (?, ?, NULL, ?, ?, ?)',
+                [collection, record.id, version, hasPending, Date.now()]
+              );
+            } else {
+              await this.runAsync(db,
+                'INSERT OR REPLACE INTO sharedb_inventory (collection, doc_id, version_num, version_str, has_pending, updated_at) VALUES (?, ?, ?, NULL, ?, ?)',
+                [collection, record.id, version, hasPending, Date.now()]
+              );
+            }
+          }
+        }
+      }
+
+      // Process meta records
+      if (recordsByType.meta) {
+        const metaRecords = Array.isArray(recordsByType.meta) ? recordsByType.meta : [recordsByType.meta];
+        for (const metaRecord of metaRecords) {
+          await this.runAsync(db,
+            'INSERT OR REPLACE INTO sharedb_meta (id, data) VALUES (?, ?)',
+            [metaRecord.id, JSON.stringify(metaRecord.payload)]
+          );
+        }
+      }
+
+      callback?.();
+    } catch (error) {
+      callback?.(error as Error);
+    }
   }
 
+  /**
+   * Read a single record from a collection-specific table
+   */
   async readRecord(db: DatabaseConnection, type: string, collection: string | null, id: string, callback?: StorageCallback<StorageRecord | null>): Promise<StorageRecord | null> {
-    // TODO: Implement based on JavaScript version
-    throw new Error('Method not implemented.');
+    try {
+      if (type === 'meta') {
+        const row = await db.getFirstAsync('SELECT data FROM sharedb_meta WHERE id = ?', [id]);
+        if (!row) {
+          callback?.(null, null);
+          return null;
+        }
+        const record = { id, payload: JSON.parse(row.data) };
+        callback?.(null, record);
+        return record;
+      } else {
+        // For docs, if collection is not specified, look it up from inventory
+        if (!collection || collection === 'docs') {
+          const inventoryRow = await db.getFirstAsync(
+            'SELECT collection FROM sharedb_inventory WHERE doc_id = ?',
+            [id]
+          );
+          if (!inventoryRow) {
+            callback?.(null, null);
+            return null;
+          }
+          collection = inventoryRow.collection;
+        }
+
+        const tableName = this.getTableName(collection!);
+        const row = await db.getFirstAsync('SELECT data FROM ' + tableName + ' WHERE id = ?', [id]);
+        if (!row) {
+          callback?.(null, null);
+          return null;
+        }
+
+        const record = JSON.parse(row.data);
+        callback?.(null, record);
+        return record;
+      }
+    } catch (error) {
+      callback?.(error as Error, null);
+      return null;
+    }
   }
 
+  /**
+   * Read all records of a given type
+   */
   async readAllRecords(db: DatabaseConnection, type: string, collection: string | null, callback?: StorageCallback<StorageRecord[]>): Promise<StorageRecord[]> {
-    // TODO: Implement based on JavaScript version
-    throw new Error('Method not implemented.');
+    try {
+      if (type === 'meta') {
+        const rows = await db.getAllAsync('SELECT id, data FROM sharedb_meta');
+        const records = rows.map(row => ({
+          id: row.id,
+          payload: JSON.parse(row.data)
+        }));
+        callback?.(null, records);
+        return records;
+      } else if (collection && collection !== 'docs') {
+        const tableName = this.getTableName(collection);
+        const rows = await db.getAllAsync('SELECT id, data FROM ' + tableName);
+        const records = rows.map(row => JSON.parse(row.data));
+        callback?.(null, records);
+        return records;
+      } else {
+        // Read from all collection tables
+        const inventory = await db.getAllAsync('SELECT DISTINCT collection FROM sharedb_inventory');
+        const allRecords: StorageRecord[] = [];
+
+        for (const item of inventory) {
+          const tableName = this.getTableName(item.collection);
+          const rows = await db.getAllAsync('SELECT data FROM ' + tableName);
+          const records = rows.map(row => JSON.parse(row.data));
+          allRecords.push(...records);
+        }
+
+        callback?.(null, allRecords);
+        return allRecords;
+      }
+    } catch (error) {
+      callback?.(error as Error, []);
+      return [];
+    }
   }
 
+  /**
+   * Delete a record from a collection-specific table
+   */
   async deleteRecord(db: DatabaseConnection, type: string, collection: string | null, id: string, callback?: StorageCallback): Promise<void> {
-    // TODO: Implement based on JavaScript version
-    throw new Error('Method not implemented.');
+    try {
+      if (type === 'meta') {
+        await this.runAsync(db, 'DELETE FROM sharedb_meta WHERE id = ?', [id]);
+      } else {
+        // For docs, if collection is not specified, look it up from inventory
+        if (!collection || collection === 'docs') {
+          const inventoryRow = await db.getFirstAsync(
+            'SELECT collection FROM sharedb_inventory WHERE doc_id = ?',
+            [id]
+          );
+          if (!inventoryRow) {
+            callback?.();
+            return;
+          }
+          collection = inventoryRow.collection;
+        }
+
+        const tableName = this.getTableName(collection!);
+        await this.runAsync(db, 'DELETE FROM ' + tableName + ' WHERE id = ?', [id]);
+
+        // Delete projections
+        await this.deleteProjections(db, collection!, id);
+
+        // Delete from inventory
+        await this.runAsync(db, 'DELETE FROM sharedb_inventory WHERE doc_id = ?', [id]);
+      }
+
+      callback?.();
+    } catch (error) {
+      callback?.(error as Error);
+    }
   }
 
   async initializeInventory(db: DatabaseConnection, callback?: StorageCallback<StorageRecord>): Promise<StorageRecord> {
@@ -392,13 +565,88 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
   }
 
   async readInventory(db: DatabaseConnection, callback?: StorageCallback<StorageRecord>): Promise<StorageRecord> {
-    // TODO: Implement based on JavaScript version
-    throw new Error('Method not implemented.');
+    try {
+      const rows = await db.getAllAsync(
+        'SELECT collection, doc_id, version_num, version_str, has_pending FROM sharedb_inventory ORDER BY collection, doc_id'
+      );
+
+      const inventory: any = { collections: {} };
+
+      for (const row of rows) {
+        if (!inventory.collections[row.collection]) {
+          inventory.collections[row.collection] = {};
+        }
+        // Use whichever version type is not null
+        const version = row.version_str !== null ? row.version_str : row.version_num;
+        const hasPending = row.has_pending === 1;
+
+        inventory.collections[row.collection][row.doc_id] = {
+          v: version,
+          p: hasPending
+        };
+      }
+
+      const result = {
+        id: 'inventory',
+        payload: inventory
+      };
+
+      callback?.(null, result);
+      return result;
+    } catch (error) {
+      callback?.(error as Error);
+      throw error;
+    }
   }
 
   async updateInventoryItem(db: DatabaseConnection, collection: string, docId: string, version: number | string, operation: string, callback?: StorageCallback): Promise<void> {
-    // TODO: Implement based on JavaScript version
-    throw new Error('Method not implemented.');
+    try {
+      const now = Date.now();
+
+      if (operation === 'add' || operation === 'update') {
+        // Check for version type consistency
+        const existing = await db.getFirstAsync(
+          'SELECT version_num, version_str FROM sharedb_inventory WHERE collection = ? AND doc_id = ?',
+          [collection, docId]
+        );
+
+        if (existing) {
+          const existingIsString = (existing.version_str !== null);
+          const newIsString = (typeof version === 'string');
+
+          if (existingIsString !== newIsString) {
+            throw new Error(
+              `Version type mismatch: Cannot store ${collection}/${docId} with ${typeof version} version ${version} when existing version is ${existingIsString ? 'string' : 'number'}`
+            );
+          }
+        }
+
+        // Insert or update with appropriate version column
+        if (typeof version === 'string') {
+          await this.runAsync(db,
+            'INSERT OR REPLACE INTO sharedb_inventory (collection, doc_id, version_num, version_str, has_pending, updated_at) VALUES (?, ?, NULL, ?, 0, ?)',
+            [collection, docId, version, now]
+          );
+        } else {
+          await this.runAsync(db,
+            'INSERT OR REPLACE INTO sharedb_inventory (collection, doc_id, version_num, version_str, has_pending, updated_at) VALUES (?, ?, ?, NULL, 0, ?)',
+            [collection, docId, version, now]
+          );
+        }
+      } else if (operation === 'remove') {
+        // Delete inventory item
+        await this.runAsync(db,
+          'DELETE FROM sharedb_inventory WHERE collection = ? AND doc_id = ?',
+          [collection, docId]
+        );
+      } else {
+        throw new Error('Invalid inventory operation: ' + operation);
+      }
+
+      callback?.();
+    } catch (error) {
+      callback?.(error as Error);
+    }
   }
 
   getInventoryType(): string {
@@ -406,7 +654,37 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
   }
 
   async deleteAllTables(db: DatabaseConnection, callback?: StorageCallback): Promise<void> {
-    // TODO: Implement based on JavaScript version
-    throw new Error('Method not implemented.');
+    try {
+      // Drop the standard meta and inventory tables
+      await this.runAsync(db, 'DROP TABLE IF EXISTS sharedb_meta');
+      await this.runAsync(db, 'DROP TABLE IF EXISTS sharedb_inventory');
+
+      // Get all collection-specific table names and drop them
+      const tables = await db.getAllAsync(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('sharedb_meta', 'sharedb_inventory')"
+      );
+
+      for (const table of tables) {
+        if (!table.name.startsWith('sqlite_')) {
+          await this.runAsync(db, 'DROP TABLE IF EXISTS ' + table.name);
+        }
+      }
+
+      this.debug && console.log('[CollectionPerTableStrategy] Deleted all tables');
+      callback?.();
+    } catch (error) {
+      callback?.(error as Error);
+    }
+  }
+
+  /**
+   * Ensure a collection table exists before writing to it
+   */
+  async ensureCollectionTable(db: DatabaseConnection, collection: string): Promise<void> {
+    if (this.createdTables[collection]) {
+      return;
+    }
+
+    await this.createCollectionTable(db, collection);
   }
 }
