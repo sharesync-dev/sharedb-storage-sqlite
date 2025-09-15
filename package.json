@@ -1,0 +1,69 @@
+{
+  "name": "@shaxpir/sharedb-storage-sqlite",
+  "version": "1.0.0",
+  "description": "Shared SQLite storage components for ShareDB adapters",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "keywords": [
+    "sharedb",
+    "sqlite",
+    "storage",
+    "database",
+    "schema",
+    "strategy",
+    "realtime",
+    "collaborative",
+    "operational-transform"
+  ],
+  "author": "Benji Smith <benji@shaxpir.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/shaxpir/sharedb-storage-sqlite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shaxpir/sharedb-storage-sqlite/issues"
+  },
+  "homepage": "https://github.com/shaxpir/sharedb-storage-sqlite#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "peerDependencies": {
+    "@shaxpir/sharedb": ">=6.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "mocha": "^10.2.0",
+    "chai": "^4.3.7",
+    "nyc": "^15.1.0"
+  },
+  "files": [
+    "lib/",
+    "src/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "mocha lib/test/**/*.test.js",
+    "test-cover": "nyc --temp-dir=coverage -r text -r lcov npm test",
+    "prepare": "npm run build",
+    "prepack": "npm run build && npm test"
+  },
+  "mocha": {
+    "recursive": true,
+    "timeout": 5000,
+    "spec": "lib/test/**/*.test.js"
+  },
+  "nyc": {
+    "exclude": [
+      "test/**"
+    ],
+    "reporter": [
+      "text",
+      "lcov"
+    ]
+  }
+}
