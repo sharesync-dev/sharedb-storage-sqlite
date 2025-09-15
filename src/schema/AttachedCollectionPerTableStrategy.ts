@@ -43,10 +43,11 @@ export class AttachedCollectionPerTableStrategy extends CollectionPerTableStrate
       await this.runAsync(db, 'CREATE INDEX IF NOT EXISTS idx_inventory_collection ON sharedb_inventory(collection)');
       await this.runAsync(db, 'CREATE INDEX IF NOT EXISTS idx_inventory_updated ON sharedb_inventory(updated_at)');
 
-      // Create pre-configured collection tables
+      // Create pre-configured collection tables and their projections
       if (this.collectionConfig) {
         for (const collection of Object.keys(this.collectionConfig)) {
           await this.createCollectionTable(db, collection);
+          await this.createProjectionTables(db, collection);
         }
       }
 

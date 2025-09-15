@@ -99,20 +99,34 @@ export class MockDatabase implements DatabaseConnection {
   async getAllAsync(sql: string, params?: any[]): Promise<any[]> {
     this.sqlHistory.push({ sql, params });
 
+    // Mock getting all tables from sqlite_master (check this FIRST before extracting table names)
+    if (sql.includes('sqlite_master')) {
+      const tables: any[] = [];
+
+      // Check if query excludes certain tables
+      const excludesMeta = sql.includes("NOT IN") && sql.includes("'sharedb_meta'");
+
+      for (const [name, _] of this.data) {
+        // Skip sqlite internal tables
+        if (name.startsWith('sqlite_')) {
+          continue;
+        }
+
+        // If query excludes meta/inventory, don't include them
+        if (excludesMeta && (name === 'sharedb_meta' || name === 'sharedb_inventory')) {
+          continue;
+        }
+
+        // Include all other tables
+        tables.push({ name });
+      }
+      return tables;
+    }
+
+    // For regular table queries
     const tableName = this.extractTableName(sql);
     if (tableName) {
       return this.data.get(tableName) || [];
-    }
-
-    // Mock getting all tables
-    if (sql.includes('sqlite_master')) {
-      const tables: any[] = [];
-      for (const [name, _] of this.data) {
-        if (name.startsWith('sharedb_') || name.startsWith('projection_')) {
-          tables.push({ name });
-        }
-      }
-      return tables;
     }
 
     return [];

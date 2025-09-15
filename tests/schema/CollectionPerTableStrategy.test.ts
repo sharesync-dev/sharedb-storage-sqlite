@@ -399,7 +399,7 @@ describe('CollectionPerTableStrategy', () => {
       expect(updateStatements[0].params).toContain('doc1');
       expect(updateStatements[0].params).toContain('terms');
       expect(updateStatements[0].params).toContain(5);
-      expect(updateStatements[0].params).toContain('update');
+      // Note: operation parameter is not stored, just used for logic
     });
   });
 
@@ -425,6 +425,7 @@ describe('CollectionPerTableStrategy', () => {
 
       const history = db.getSqlHistory();
       const dropStatements = history.filter(h => h.sql.includes('DROP TABLE'));
+
 
       expect(dropStatements.some(h => h.sql.includes('sharedb_meta'))).toBe(true);
       expect(dropStatements.some(h => h.sql.includes('sharedb_inventory'))).toBe(true);

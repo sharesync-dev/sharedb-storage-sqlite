@@ -184,6 +184,8 @@ describe('AttachedCollectionPerTableStrategy', () => {
       const createProjection = history.filter(h =>
         h.sql.includes('CREATE TABLE') && h.sql.includes('projection_term_tag')
       );
+
+
       expect(createProjection.length).toBe(1);
 
       // Should insert projections
