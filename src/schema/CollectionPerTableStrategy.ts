@@ -171,7 +171,10 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       // Add PRIMARY KEY constraint
       const primaryKeyClause = 'PRIMARY KEY (' + projection.primaryKey.join(', ') + ')';
 
-      const createTableSQL = 'CREATE TABLE IF NOT EXISTS ' + projection.targetTable + ' (' +
+      // Add projection_ prefix to table name
+      const projectionTableName = 'projection_' + projection.targetTable;
+
+      const createTableSQL = 'CREATE TABLE IF NOT EXISTS ' + projectionTableName + ' (' +
         columns.join(', ') + ', ' +
         primaryKeyClause +
       ')';
@@ -182,11 +185,11 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       for (const column of projection.primaryKey) {
         const indexName = 'idx_' + projection.targetTable + '_' + column;
         await this.runAsync(db,
-          'CREATE INDEX IF NOT EXISTS ' + indexName + ' ON ' + projection.targetTable + '(' + column + ')'
+          'CREATE INDEX IF NOT EXISTS ' + indexName + ' ON ' + projectionTableName + '(' + column + ')'
         );
       }
 
-      this.debug && console.log('[CollectionPerTableStrategy] Created projection table', projection.targetTable);
+      this.debug && console.log('[CollectionPerTableStrategy] Created projection table', projectionTableName);
     }
   }
 
@@ -225,7 +228,8 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
     }
 
     if (deleteColumns.length > 0) {
-      const deleteSQL = 'DELETE FROM ' + projection.targetTable + ' WHERE ' + deleteColumns.join(' AND ');
+      const projectionTableName = 'projection_' + projection.targetTable;
+      const deleteSQL = 'DELETE FROM ' + projectionTableName + ' WHERE ' + deleteColumns.join(' AND ');
       await this.runAsync(db, deleteSQL, deleteValues);
     }
 
@@ -265,13 +269,14 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       placeholders.push('?');
 
       const columns = Object.keys(projection.mapping).concat(['created_at']);
-      const insertSQL = 'INSERT OR REPLACE INTO ' + projection.targetTable +
+      const projectionTableName = 'projection_' + projection.targetTable;
+      const insertSQL = 'INSERT OR REPLACE INTO ' + projectionTableName +
         ' (' + columns.join(', ') + ') VALUES (' + placeholders.join(', ') + ')';
 
       await this.runAsync(db, insertSQL, values);
     }
 
-    this.debug && console.log('[CollectionPerTableStrategy] Updated projections in', projection.targetTable, 'for record', recordId);
+    this.debug && console.log('[CollectionPerTableStrategy] Updated projections in', 'projection_' + projection.targetTable, 'for record', recordId);
   }
 
   /**
@@ -295,9 +300,10 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       }
 
       if (idColumn) {
-        const deleteSQL = 'DELETE FROM ' + projection.targetTable + ' WHERE ' + idColumn + ' = ?';
+        const projectionTableName = 'projection_' + projection.targetTable;
+        const deleteSQL = 'DELETE FROM ' + projectionTableName + ' WHERE ' + idColumn + ' = ?';
         await this.runAsync(db, deleteSQL, [recordId]);
-        this.debug && console.log('[CollectionPerTableStrategy] Deleted projections from', projection.targetTable, 'for record', recordId);
+        this.debug && console.log('[CollectionPerTableStrategy] Deleted projections from', projectionTableName, 'for record', recordId);
       }
     }
   }
@@ -354,8 +360,8 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
     if (collection === '__inventory__') {
       return 'sharedb_inventory';
     }
-    // Sanitize collection name for use as table name
-    return collection.replace(/[^a-zA-Z0-9_]/g, '_');
+    // Add sharedb_ prefix and sanitize collection name for use as table name
+    return 'sharedb_' + collection.replace(/[^a-zA-Z0-9_]/g, '_');
   }
 
   /**
@@ -404,8 +410,8 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
             // Update projections
             await this.updateProjections(db, collection, record, null);
 
-            // Update inventory
-            const version = record.payload?.v || 1;
+            // Update inventory - check for version at record level first, then payload
+            const version = (record as any).version || record.payload?.v || 1;
             const hasPending = (record.payload?.pendingOps || record.payload?.inflightOp) ? 1 : 0;
 
             if (typeof version === 'string') {
@@ -565,8 +571,8 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
   async initializeInventory(db: DatabaseConnection, callback?: StorageCallback<StorageRecord>): Promise<StorageRecord> {
     // Inventory table is created in initializeSchema
     const inventory = {
-      id: 'inventory',
-      payload: { collections: {} }
+      id: 'sharedb-inventory',
+      payload: {}
     };
     callback?.(null, inventory);
     return inventory;
@@ -595,7 +601,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       }
 
       const result = {
-        id: 'inventory',
+        id: 'sharedb-inventory',
         payload: inventory
       };
 
@@ -658,7 +664,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
   }
 
   getInventoryType(): string {
-    return 'table';
+    return 'inventory';
   }
 
   async deleteAllTables(db: DatabaseConnection, callback?: StorageCallback): Promise<void> {

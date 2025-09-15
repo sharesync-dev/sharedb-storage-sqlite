@@ -105,7 +105,7 @@ export class MockDatabase implements DatabaseConnection {
     }
 
     // Mock getting all tables
-    if (sql.includes('sqlite_master') && sql.includes('sharedb_')) {
+    if (sql.includes('sqlite_master')) {
       const tables: any[] = [];
       for (const [name, _] of this.data) {
         if (name.startsWith('sharedb_') || name.startsWith('projection_')) {
