@@ -51,7 +51,7 @@ export class AttachedCollectionPerTableStrategy extends CollectionPerTableStrate
         }
       }
 
-      callback?.();
+      callback?.(null);
     } catch (error) {
       callback?.(error as Error);
       throw error;
@@ -102,7 +102,7 @@ export class AttachedCollectionPerTableStrategy extends CollectionPerTableStrate
       // Clear the created tables tracking
       this.createdTables = {};
 
-      callback?.();
+      callback?.(null);
     } catch (error) {
       callback?.(error as Error);
       throw error;

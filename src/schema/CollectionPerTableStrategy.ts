@@ -110,7 +110,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       }
 
       this.debug && console.log('[CollectionPerTableStrategy] Schema initialized');
-      callback?.();
+      callback?.(null);
     } catch (error) {
       console.error('[CollectionPerTableStrategy] Schema initialization error:', error);
       callback?.(error as Error);
@@ -164,7 +164,15 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       // Build CREATE TABLE statement
       const columns: string[] = [];
       for (const targetColumn in projection.mapping) {
-        columns.push(targetColumn + ' TEXT');
+        const mappingConfig = projection.mapping[targetColumn];
+
+        // Determine SQL datatype
+        let dataType = 'TEXT'; // default
+        if (typeof mappingConfig === 'object' && mappingConfig.dataType) {
+          dataType = mappingConfig.dataType;
+        }
+
+        columns.push(targetColumn + ' ' + dataType);
       }
       columns.push('created_at INTEGER');
 
@@ -181,12 +189,25 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
 
       await this.runAsync(db, createTableSQL);
 
-      // Create indexes for efficient querying
+      // Create indexes for primary key columns
       for (const column of projection.primaryKey) {
         const indexName = 'idx_' + projection.targetTable + '_' + column;
         await this.runAsync(db,
           'CREATE INDEX IF NOT EXISTS ' + indexName + ' ON ' + projectionTableName + '(' + column + ')'
         );
+      }
+
+      // Create any additional custom indexes
+      if (projection.indexes) {
+        for (const indexConfig of projection.indexes) {
+          const indexName = indexConfig.name ||
+            'idx_' + projection.targetTable + '_' + indexConfig.columns.join('_');
+          const uniqueClause = indexConfig.unique ? 'UNIQUE ' : '';
+          await this.runAsync(db,
+            'CREATE ' + uniqueClause + 'INDEX IF NOT EXISTS ' + indexName +
+            ' ON ' + projectionTableName + '(' + indexConfig.columns.join(', ') + ')'
+          );
+        }
       }
 
       this.debug && console.log('[CollectionPerTableStrategy] Created projection table', projectionTableName);
@@ -219,8 +240,17 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
     const deleteColumns: string[] = [];
     const deleteValues: any[] = [];
     for (const targetColumn in projection.mapping) {
-      const sourcePath = projection.mapping[targetColumn];
-      if (sourcePath === 'id' || sourcePath === '') {
+      const mappingConfig = projection.mapping[targetColumn];
+
+      // Extract source path from mapping config
+      let sourcePath: string;
+      if (typeof mappingConfig === 'string') {
+        sourcePath = mappingConfig;
+      } else {
+        sourcePath = mappingConfig.source;
+      }
+
+      if (sourcePath === 'id') {
         deleteColumns.push(targetColumn + ' = ?');
         deleteValues.push(recordId);
         break; // Only need to match on the record ID column
@@ -246,11 +276,21 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       const placeholders: string[] = [];
 
       for (const targetColumn in projection.mapping) {
-        const sourcePath = projection.mapping[targetColumn];
+        const mappingConfig = projection.mapping[targetColumn];
+
+        // Extract source path from mapping config
+        let sourcePath: string;
+        if (typeof mappingConfig === 'string') {
+          // Backwards compatibility: string value
+          sourcePath = mappingConfig;
+        } else {
+          // New format: object with source property
+          sourcePath = mappingConfig.source;
+        }
 
         let value: any;
-        if (sourcePath === '') {
-          // Empty string means use the array element itself
+        if (sourcePath === '' || sourcePath === '@element') {
+          // Empty string or @element means use the array element itself
           value = element;
         } else if (sourcePath === 'id') {
           // Special case for record ID
@@ -374,7 +414,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
         // Handle different formats of docs
         let recordsByCollection: Record<string, StorageRecord[]> = {};
 
-        if (typeof recordsByType.docs === 'object' && !Array.isArray(recordsByType.docs) && !(recordsByType.docs as any).id) {
+        if (typeof recordsByType.docs === 'object' && !Array.isArray(recordsByType.docs) && !('id' in recordsByType.docs)) {
           // docs is already a dictionary of collections
           recordsByCollection = recordsByType.docs as Record<string, StorageRecord[]>;
         } else {
@@ -383,7 +423,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
 
           // Group records by collection
           for (const record of docsRecords) {
-            const collection = record.collection || record.payload?.collection;
+            const collection = (record as any).collection || record.payload?.collection;
             if (!collection) {
               throw new Error('Record missing required collection field');
             }
@@ -440,7 +480,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
         }
       }
 
-      callback?.();
+      callback?.(null);
     } catch (error) {
       callback?.(error as Error);
     }
@@ -546,7 +586,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
             [id]
           );
           if (!inventoryRow) {
-            callback?.();
+            callback?.(null);
             return;
           }
           collection = inventoryRow.collection;
@@ -562,7 +602,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
         await this.runAsync(db, 'DELETE FROM sharedb_inventory WHERE doc_id = ?', [id]);
       }
 
-      callback?.();
+      callback?.(null);
     } catch (error) {
       callback?.(error as Error);
     }
@@ -647,7 +687,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
         );
       }
 
-      callback?.();
+      callback?.(null);
     } catch (error) {
       callback?.(error as Error);
       throw error;
@@ -661,7 +701,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
         [collection, docId]
       );
 
-      callback?.();
+      callback?.(null);
     } catch (error) {
       callback?.(error as Error);
       throw error;
@@ -706,7 +746,7 @@ export class CollectionPerTableStrategy extends BaseSchemaStrategy {
       }
 
       this.debug && console.log('[CollectionPerTableStrategy] Deleted all tables');
-      callback?.();
+      callback?.(null);
     } catch (error) {
       callback?.(error as Error);
     }

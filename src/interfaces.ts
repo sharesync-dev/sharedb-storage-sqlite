@@ -82,16 +82,34 @@ export interface CollectionConfig {
 }
 
 /**
+ * Column mapping configuration for projections
+ */
+export interface ProjectionColumnMapping {
+  source: string | '@element';  // JSON path or '@element' for the array element itself
+  dataType?: 'TEXT' | 'INTEGER' | 'REAL' | 'BLOB';  // SQLite datatype (default: TEXT)
+}
+
+/**
+ * Index configuration for projection tables
+ */
+export interface ProjectionIndexConfig {
+  columns: string[];  // Column(s) to index
+  unique?: boolean;   // Create a unique index
+  name?: string;      // Optional custom index name
+}
+
+/**
  * Array projection configuration for relational tables
  */
 export interface ArrayProjectionConfig {
   type: 'array_expansion';
   targetTable: string;
   mapping: {
-    [targetColumn: string]: string; // JSON path or empty for array element
+    [targetColumn: string]: string | ProjectionColumnMapping;  // Backwards compatible
   };
   arrayPath: string;
   primaryKey: string[];
+  indexes?: ProjectionIndexConfig[];  // Additional indexes beyond the auto-generated PK indexes
 }
 
 /**

@@ -7,50 +7,40 @@
  * the required methods.
  */
 
-export interface DatabaseConnection {
-  runAsync(sql: string, params?: any[]): Promise<any>;
-  getFirstAsync(sql: string, params?: any[]): Promise<any>;
-  getAllAsync(sql: string, params?: any[]): Promise<any[]>;
-  transaction<T>(operations: () => Promise<T>): Promise<T>;
-}
+import {
+  SqliteConnection,
+  DurableStorageRecord,
+  DurableStorageRecords,
+  DurableStorageCallback,
+  SchemaStrategyOptions,
+  CollectionConfig,
+  ArrayProjectionConfig,
+  ProjectionColumnMapping,
+  ProjectionIndexConfig
+} from '../interfaces';
 
-export interface StorageRecord {
+// Re-export for backwards compatibility with existing imports
+export {
+  SchemaStrategyOptions,
+  CollectionConfig,
+  ArrayProjectionConfig,
+  ProjectionColumnMapping,
+  ProjectionIndexConfig
+};
+
+// Local type aliases for cleaner code
+export type DatabaseConnection = SqliteConnection;
+export type StorageRecord = {
   id: string;
   payload?: any;
   collection?: string;
   encrypted_payload?: string;
-}
-
-export interface StorageRecords {
+};
+export type StorageRecords = {
   docs?: StorageRecord | StorageRecord[] | Record<string, StorageRecord[]>;
   meta?: StorageRecord | StorageRecord[];
-}
-
-export type StorageCallback<T = any> = (error?: Error | null, result?: T) => void;
-
-export interface SchemaStrategyOptions {
-  useEncryption?: boolean;
-  encryptionCallback?: (text: string) => string;
-  decryptionCallback?: (encrypted: string) => string;
-  debug?: boolean;
-  collectionConfig?: Record<string, CollectionConfig>;
-}
-
-export interface ArrayProjectionConfig {
-  type: 'array_expansion';
-  targetTable: string;
-  mapping: {
-    [targetColumn: string]: string; // JSON path or empty for array element
-  };
-  arrayPath: string;
-  primaryKey: string[];
-}
-
-export interface CollectionConfig {
-  indexes?: string[];
-  encryptedFields?: string[];
-  projections?: ArrayProjectionConfig[];
-}
+};
+export type StorageCallback<T = any> = DurableStorageCallback<T>;
 
 export abstract class BaseSchemaStrategy {
   protected options: SchemaStrategyOptions;
@@ -152,7 +142,7 @@ export abstract class BaseSchemaStrategy {
    */
   async createIndexes(db: DatabaseConnection, collection: string, callback?: StorageCallback): Promise<void> {
     // Default: no additional indexes
-    callback?.();
+    callback?.(null);
   }
 
   /**
@@ -160,7 +150,7 @@ export abstract class BaseSchemaStrategy {
    */
   async migrateSchema(db: DatabaseConnection, fromVersion: number, toVersion: number, callback?: StorageCallback): Promise<void> {
     // Default: no migration needed
-    callback?.();
+    callback?.(null);
   }
 
   /**
