@@ -110,11 +110,12 @@ describe('AttachedCollectionPerTableStrategy', function() {
         });
 
         expect(inventoryCreate).to.exist;
-        // AttachedCollectionPerTableStrategy has different inventory schema
+        // AttachedCollectionPerTableStrategy now matches CollectionPerTableStrategy schema
         expect(inventoryCreate.sql).to.include('doc_id');
         expect(inventoryCreate.sql).to.include('collection');
-        expect(inventoryCreate.sql).to.include('version');
-        expect(inventoryCreate.sql).to.include('last_operation');
+        expect(inventoryCreate.sql).to.include('version_num');
+        expect(inventoryCreate.sql).to.include('version_str');
+        expect(inventoryCreate.sql).to.include('has_pending');
         done();
       });
     });
