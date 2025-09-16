@@ -102,8 +102,6 @@ MockDatabase.prototype.runAsync = function(sql, params) {
     result = Promise.resolve({ changes: 0 });
   }
 
-  // Add a promise() method that returns itself for compatibility
-  result.promise = function() { return result; };
   return result;
 };
 
@@ -179,8 +177,6 @@ MockDatabase.prototype.getFirstAsync = function(sql, params) {
     result = Promise.resolve(null);
   }
 
-  // Add a promise() method for compatibility
-  result.promise = function() { return result; };
   return result;
 };
 
@@ -235,8 +231,6 @@ MockDatabase.prototype.getAllAsync = function(sql, params) {
     }
   }
 
-  // Add a promise() method for compatibility
-  result.promise = function() { return result; };
   return result;
 };
 
