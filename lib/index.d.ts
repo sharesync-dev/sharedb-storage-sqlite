@@ -226,3 +226,35 @@ export declare class AttachedCollectionPerTableStrategy extends CollectionPerTab
     attachments?: DatabaseAttachment[];
   });
 }
+
+/**
+ * Attached SQLite adapter configuration
+ */
+export interface AttachedSqliteAdapterConfig {
+  attachments: DatabaseAttachment[];
+}
+
+/**
+ * Attached SQLite adapter
+ * Decorator that wraps any SqliteAdapter to add database attachment support
+ * Enables cross-database queries through SQLite's ATTACH functionality
+ */
+export declare class AttachedSqliteAdapter implements SqliteAdapter {
+  constructor(wrappedAdapter: SqliteAdapter, attachmentConfig: AttachedSqliteAdapterConfig, debug?: boolean);
+
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  runAsync(sql: string, params?: any[]): Promise<any>;
+  getFirstAsync(sql: string, params?: any[]): Promise<any>;
+  getAllAsync(sql: string, params?: any[]): Promise<any[]>;
+  transaction<T>(operations: () => Promise<T>): Promise<T>;
+
+  isAttached(): boolean;
+  getAttachedAliases(): string[];
+  readonly connected?: boolean;
+}
+
+/**
+ * Version constant
+ */
+export declare const VERSION: string;

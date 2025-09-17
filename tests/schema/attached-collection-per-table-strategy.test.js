@@ -85,12 +85,12 @@ describe('AttachedCollectionPerTableStrategy', function() {
           return h.sql.indexOf('CREATE TABLE') !== -1;
         });
 
-        // Should create collection tables
+        // Should create collection tables (without collection_ prefix for attached strategy)
         var hasPostsTable = createStatements.some(function(h) {
-          return h.sql.indexOf('collection_posts') !== -1;
+          return h.sql.indexOf('CREATE TABLE IF NOT EXISTS posts') !== -1;
         });
         var hasCommentsTable = createStatements.some(function(h) {
-          return h.sql.indexOf('collection_comments') !== -1;
+          return h.sql.indexOf('CREATE TABLE IF NOT EXISTS comments') !== -1;
         });
 
         expect(hasPostsTable).to.be.true;
@@ -183,8 +183,8 @@ describe('AttachedCollectionPerTableStrategy', function() {
     });
 
     it('should clear created tables tracking', function(done) {
-      // First verify table is tracked as created
-      expect(db.hasTable('collection_posts')).to.be.true;
+      // First verify table is tracked as created (without collection_ prefix)
+      expect(db.hasTable('posts')).to.be.true;
 
       strategy.deleteAllTables(db, function(err) {
         expect(err).to.not.exist;
