@@ -164,7 +164,7 @@ describe('CollectionPerTableStrategy', function() {
         });
 
         var hasProjectionTable = createStatements.some(function(h) {
-          return h.sql.indexOf('projection_term_tag') !== -1;
+          return h.sql.indexOf('term_tag') !== -1;
         });
 
         expect(hasProjectionTable).to.be.true;

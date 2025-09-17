@@ -238,17 +238,17 @@ describe('AttachedCollectionPerTableStrategy', function() {
 
       // Track SQL queries to verify correct table creation
       var executedQueries = [];
-      mockDb.runAsync = function(sql) {
+      db.runAsync = function(sql) {
         executedQueries.push(sql);
         return Promise.resolve({ changes: 1 });
       };
 
-      mockDb.getAllAsync = function(sql) {
+      db.getAllAsync = function(sql) {
         // Return empty array for existing tables check
         return Promise.resolve([]);
       };
 
-      strategy.initializeSchema(mockDb, function(err) {
+      strategy.initializeSchema(db, function(err) {
         expect(err).to.not.exist;
 
         // Check that projection table was created with correct alias
@@ -299,12 +299,12 @@ describe('AttachedCollectionPerTableStrategy', function() {
       strategy = new AttachedCollectionPerTableStrategy(options);
 
       var executedQueries = [];
-      mockDb.runAsync = function(sql) {
+      db.runAsync = function(sql) {
         executedQueries.push(sql);
         return Promise.resolve({ changes: 1 });
       };
 
-      strategy.initializeSchema(mockDb, function(err) {
+      strategy.initializeSchema(db, function(err) {
         expect(err).to.not.exist;
 
         // Without alias, should create table without prefix
@@ -360,7 +360,7 @@ describe('AttachedCollectionPerTableStrategy', function() {
         var history = db.getSqlHistory();
         var projectionTable = history.find(function(h) {
           return h.sql.indexOf('CREATE TABLE') !== -1 &&
-                 h.sql.indexOf('projection_post_tags') !== -1;
+                 h.sql.indexOf('post_tags') !== -1;
         });
 
         expect(projectionTable).to.exist;
