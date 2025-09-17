@@ -8,7 +8,9 @@ This package contains the shared components for SQLite-based ShareDB storage:
 
 - **Schema Strategies**: Define how ShareDB documents are organized in SQLite tables
 - **Base Classes**: Core SQLite storage implementation that works with any SQLite adapter
+- **Adapters**: AttachedSqliteAdapter for multi-database support
 - **Interfaces**: TypeScript definitions for SQLite adapters and storage options
+- **Utilities**: JsonPathValidator for SQL query validation
 - **Projection Support**: Automatic materialization of JSON arrays into relational tables for optimized queries
 
 ## Performance
@@ -130,6 +132,28 @@ interface SqliteAdapter {
   getFirstAsync(sql: string, params?: any[]): Promise<any>;
   getAllAsync(sql: string, params?: any[]): Promise<any[]>;
   transaction?<T>(operations: () => Promise<T>): Promise<T>;
+}
+```
+
+### AttachedSqliteAdapter
+
+Decorator adapter that adds database attachment support:
+
+```typescript
+class AttachedSqliteAdapter {
+  constructor(wrappedAdapter: SqliteAdapter, attachmentConfig: AttachedSqliteAdapterConfig, debug?: boolean);
+  isAttached(): boolean;
+  getAttachedAliases(): string[];
+}
+```
+
+### JsonPathValidator
+
+Utility for validating JSON path expressions in SQL queries:
+
+```typescript
+class JsonPathValidator {
+  static validateJsonPaths(sql: string): string;
 }
 ```
 
