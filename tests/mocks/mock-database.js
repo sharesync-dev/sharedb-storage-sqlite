@@ -44,7 +44,7 @@ MockDatabase.prototype.runAsync = function(sql, params) {
     var tableName = this.extractTableName(sql);
     if (tableName) {
       var table = this.data.get(tableName) || [];
-      var record = this.createRecordFromParams(params || []);
+      var record = this.createRecordFromParams(params || [], sql);
       table.push(record);
       this.data.set(tableName, table);
       result = Promise.resolve({ changes: 1, lastInsertRowid: table.length });
@@ -158,7 +158,12 @@ MockDatabase.prototype.getFirstAsync = function(sql, params) {
         var id = params[0];
         for (var i = 0; i < table.length; i++) {
           if (table[i].id === id) {
-            result = Promise.resolve(table[i]);
+            // Check if selecting specific field (e.g., SELECT data FROM)
+            if (sql.indexOf('SELECT data FROM') !== -1) {
+              result = Promise.resolve({ data: table[i].data });
+            } else {
+              result = Promise.resolve(table[i]);
+            }
             break;
           }
         }
@@ -166,7 +171,12 @@ MockDatabase.prototype.getFirstAsync = function(sql, params) {
           result = Promise.resolve(null);
         }
       } else if (table.length > 0) {
-        result = Promise.resolve(table[0]);
+        // Check if selecting specific field (e.g., SELECT data FROM)
+        if (sql.indexOf('SELECT data FROM') !== -1) {
+          result = Promise.resolve({ data: table[0].data });
+        } else {
+          result = Promise.resolve(table[0]);
+        }
       } else {
         result = Promise.resolve(null);
       }
@@ -253,14 +263,32 @@ MockDatabase.prototype.extractTableName = function(sql) {
   return null;
 };
 
-MockDatabase.prototype.createRecordFromParams = function(params) {
-  // Simple mock record creation
-  return {
-    id: params[0] || 'test-id',
-    data: params[1] || '{}',
-    collection: params[2] || 'test',
-    version: params[3] || 1
-  };
+MockDatabase.prototype.createRecordFromParams = function(params, sql) {
+  // Parse column names from SQL if present
+  // Example: INSERT INTO table (id, collection, data) VALUES (?, ?, ?)
+  var columnMatch = sql ? sql.match(/\(([^)]+)\)\s+VALUES/i) : null;
+  var columns = columnMatch ? columnMatch[1].split(',').map(function(c) { return c.trim(); }) : [];
+
+  // Build record based on column order
+  var record = {};
+  for (var i = 0; i < columns.length && i < params.length; i++) {
+    record[columns[i]] = params[i];
+  }
+
+  // Ensure basic fields exist
+  if (!record.id && params[0]) record.id = params[0];
+  if (!record.data && params.length > 1) {
+    // Try to find the JSON data parameter
+    for (var j = 0; j < params.length; j++) {
+      if (typeof params[j] === 'string' && params[j].indexOf('{') === 0) {
+        record.data = params[j];
+        break;
+      }
+    }
+    if (!record.data) record.data = '{}';
+  }
+
+  return record;
 };
 
 // Additional helper methods for testing
