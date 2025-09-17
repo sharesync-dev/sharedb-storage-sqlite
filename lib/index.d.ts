@@ -255,6 +255,14 @@ export declare class AttachedSqliteAdapter implements SqliteAdapter {
 }
 
 /**
+ * JSON Path validation utility
+ * Validates that JsonPath expressions in SQL queries follow ShareDB's nested structure
+ */
+export declare class JsonPathValidator {
+  static validateJsonPaths(sql: string): string;
+}
+
+/**
  * Version constant
  */
 export declare const VERSION: string;
