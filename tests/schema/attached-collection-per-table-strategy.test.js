@@ -199,6 +199,126 @@ describe('AttachedCollectionPerTableStrategy', function() {
     });
   });
 
+  describe('projection table creation', function() {
+    it('should create projection tables with attachment alias prefix', function(done) {
+      var options = {
+        attachmentAlias: 'sharedb',
+        collectionConfig: {
+          term: {
+            indexes: ['payload.data.payload.phrase_id'],
+            encryptedFields: [],
+            projections: [
+              {
+                type: 'array_expansion',
+                targetTable: 'term_user_tag',
+                mapping: {
+                  'term_id': 'id',
+                  'phrase_id': {
+                    source: 'payload.data.payload.phrase_id',
+                    dataType: 'INTEGER'
+                  },
+                  'tag': {
+                    source: '@element',
+                    dataType: 'TEXT'
+                  }
+                },
+                arrayPath: 'payload.data.payload.user_tags',
+                primaryKey: ['term_id', 'tag'],
+                indexes: [
+                  { columns: ['phrase_id'] }
+                ]
+              }
+            ]
+          }
+        },
+        useEncryption: false
+      };
+
+      strategy = new AttachedCollectionPerTableStrategy(options);
+
+      // Track SQL queries to verify correct table creation
+      var executedQueries = [];
+      mockDb.runAsync = function(sql) {
+        executedQueries.push(sql);
+        return Promise.resolve({ changes: 1 });
+      };
+
+      mockDb.getAllAsync = function(sql) {
+        // Return empty array for existing tables check
+        return Promise.resolve([]);
+      };
+
+      strategy.initializeSchema(mockDb, function(err) {
+        expect(err).to.not.exist;
+
+        // Check that projection table was created with correct alias
+        var projectionTableQuery = executedQueries.find(function(q) {
+          return q.includes('CREATE TABLE IF NOT EXISTS sharedb.term_user_tag');
+        });
+        expect(projectionTableQuery, 'Should create projection table with alias prefix').to.exist;
+
+        // Check that projection table has correct columns
+        expect(projectionTableQuery).to.include('term_id TEXT');
+        expect(projectionTableQuery).to.include('phrase_id INTEGER');
+        expect(projectionTableQuery).to.include('tag TEXT');
+        expect(projectionTableQuery).to.include('PRIMARY KEY (term_id, tag)');
+
+        // Check that index was created with correct alias
+        var indexQuery = executedQueries.find(function(q) {
+          return q.includes('CREATE INDEX IF NOT EXISTS sharedb.idx_term_user_tag_phrase_id');
+        });
+        expect(indexQuery, 'Should create index with alias prefix').to.exist;
+        expect(indexQuery).to.include('ON term_user_tag (phrase_id)');
+
+        done();
+      });
+    });
+
+    it('should handle projection table creation without attachment alias', function(done) {
+      var options = {
+        // No attachmentAlias - testing pre-initialization mode
+        collectionConfig: {
+          term: {
+            indexes: [],
+            projections: [
+              {
+                type: 'array_expansion',
+                targetTable: 'term_user_tag',
+                mapping: {
+                  'term_id': 'id',
+                  'tag': '@element'
+                },
+                arrayPath: 'payload.user_tags',
+                primaryKey: ['term_id', 'tag']
+              }
+            ]
+          }
+        }
+      };
+
+      strategy = new AttachedCollectionPerTableStrategy(options);
+
+      var executedQueries = [];
+      mockDb.runAsync = function(sql) {
+        executedQueries.push(sql);
+        return Promise.resolve({ changes: 1 });
+      };
+
+      strategy.initializeSchema(mockDb, function(err) {
+        expect(err).to.not.exist;
+
+        // Without alias, should create table without prefix
+        var projectionTableQuery = executedQueries.find(function(q) {
+          return q.includes('CREATE TABLE IF NOT EXISTS term_user_tag');
+        });
+        expect(projectionTableQuery, 'Should create projection table without prefix').to.exist;
+        expect(projectionTableQuery).to.not.include('sharedb.term_user_tag');
+
+        done();
+      });
+    });
+  });
+
   describe('inheritance', function() {
     it('should inherit from CollectionPerTableStrategy', function() {
       strategy = new AttachedCollectionPerTableStrategy();
