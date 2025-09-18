@@ -53,7 +53,7 @@ describe('AttachedCollectionPerTableStrategy', function() {
       });
     });
 
-    it('should create meta and inventory tables in main database', function(done) {
+    it('should create inventory table in main database', function(done) {
       strategy.initializeSchema(db, function(err) {
         expect(err).to.not.exist;
 
@@ -62,15 +62,11 @@ describe('AttachedCollectionPerTableStrategy', function() {
           return h.sql.indexOf('CREATE TABLE') !== -1;
         });
 
-        // Should create sharedb_ prefixed tables (not attached)
-        var hasMetaTable = createStatements.some(function(h) {
-          return h.sql.indexOf('sharedb_meta') !== -1;
-        });
+        // Should create sharedb_inventory table (not attached)
         var hasInventoryTable = createStatements.some(function(h) {
           return h.sql.indexOf('sharedb_inventory') !== -1;
         });
 
-        expect(hasMetaTable).to.be.true;
         expect(hasInventoryTable).to.be.true;
         done();
       });

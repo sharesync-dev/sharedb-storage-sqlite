@@ -60,7 +60,7 @@ describe('CollectionPerTableStrategy', function() {
       });
     });
 
-    it('should create meta and inventory tables', function(done) {
+    it('should create inventory table', function(done) {
       strategy.initializeSchema(db, function(err) {
         expect(err).to.not.exist;
 
@@ -69,14 +69,10 @@ describe('CollectionPerTableStrategy', function() {
           return h.sql.indexOf('CREATE TABLE') !== -1;
         });
 
-        var hasMetaTable = createStatements.some(function(h) {
-          return h.sql.indexOf('sharedb_meta') !== -1;
-        });
         var hasInventoryTable = createStatements.some(function(h) {
           return h.sql.indexOf('sharedb_inventory') !== -1;
         });
 
-        expect(hasMetaTable).to.be.true;
         expect(hasInventoryTable).to.be.true;
         done();
       });
@@ -465,20 +461,6 @@ describe('CollectionPerTableStrategy', function() {
       strategy.readRecord(db, 'docs', 'terms', 'non-existent', function(err, record) {
         expect(err).to.not.exist;
         expect(record).to.be.null;
-        done();
-      });
-    });
-
-    it('should read meta records', function(done) {
-      // First write a meta record
-      db.setTableData('sharedb_meta', [
-        { id: 'test-meta', data: JSON.stringify({ key: 'value' }) }
-      ]);
-
-      strategy.readRecord(db, 'meta', null, 'test-meta', function(err, record) {
-        expect(err).to.not.exist;
-        expect(record).to.exist;
-        expect(record.id).to.equal('test-meta');
         done();
       });
     });
