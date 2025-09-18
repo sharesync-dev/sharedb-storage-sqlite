@@ -342,8 +342,8 @@ describe('AttachedCollectionPerTableStrategy', function() {
                 type: 'array_expansion',
                 targetTable: 'post_tags',
                 mapping: {
-                  'post_id': '$.id',
-                  'tag': '$.ARRAY_ITEM'
+                  'post_id': 'id',
+                  'tag': '@element'
                 },
                 arrayPath: 'payload.tags',
                 primaryKey: ['post_id', 'tag']
@@ -366,6 +366,287 @@ describe('AttachedCollectionPerTableStrategy', function() {
         expect(projectionTable).to.exist;
         done();
       });
+    });
+  });
+
+  describe('projection data operations with attachment', function() {
+    var executedQueries;
+
+    beforeEach(function(done) {
+      executedQueries = [];
+
+      // Track all SQL queries
+      var originalRunAsync = db.runAsync.bind(db);
+      db.runAsync = function(sql, params) {
+        executedQueries.push({ sql: sql, params: params });
+        return originalRunAsync(sql, params);
+      };
+
+      var options = {
+        attachmentAlias: 'sharedb',
+        collectionConfig: {
+          term: {
+            indexes: ['payload.data.payload.text'],
+            encryptedFields: [],
+            projections: [
+              {
+                type: 'array_expansion',
+                targetTable: 'term_user_tag',
+                mapping: {
+                  'term_id': 'id',
+                  'phrase_id': {
+                    source: 'payload.data.payload.phrase_id',
+                    dataType: 'INTEGER'
+                  },
+                  'tag': {
+                    source: '@element',
+                    dataType: 'TEXT'
+                  }
+                },
+                arrayPath: 'payload.data.payload.user_tags',
+                primaryKey: ['term_id', 'tag'],
+                indexes: [
+                  { columns: ['phrase_id'] },
+                  { columns: ['tag', 'phrase_id'] }
+                ]
+              }
+            ]
+          }
+        },
+        useEncryption: false
+      };
+
+      strategy = new AttachedCollectionPerTableStrategy(options);
+      strategy.initializeSchema(db, function() {
+        executedQueries = []; // Clear initialization queries
+        done();
+      });
+    });
+
+    it('should insert projection data when writing record with array', function(done) {
+      var record = {
+        id: 'term-123',
+        payload: {
+          collection: 'term',
+          id: 'term-123',
+          v: 1,
+          data: {
+            meta: {
+              updated_at: { utc_time: '20250918120000000' }
+            },
+            payload: {
+              text: 'test term',
+              phrase_id: 456,
+              user_tags: ['important', 'reviewed', 'study']
+            }
+          }
+        }
+      };
+
+      strategy.writeCollectionRecord(db, 'term', record)
+        .then(function() {
+          // Check projection inserts
+          var projectionInserts = executedQueries.filter(function(q) {
+            return q.sql.indexOf('INSERT OR REPLACE INTO sharedb.term_user_tag') !== -1;
+          });
+
+          expect(projectionInserts).to.have.length(3);
+
+          // Verify each tag was inserted with correct data
+          var insertedTags = projectionInserts.map(function(q) {
+            return q.params[2]; // tag is third parameter
+          }).sort();
+          expect(insertedTags).to.deep.equal(['important', 'reviewed', 'study']);
+
+          // Verify phrase_id was included
+          expect(projectionInserts[0].params[1]).to.equal(456);
+
+          done();
+        })
+        .catch(done);
+    });
+
+    it('should delete old projections before inserting new ones on update', function(done) {
+      // First write a record
+      var initialRecord = {
+        id: 'term-456',
+        payload: {
+          collection: 'term',
+          id: 'term-456',
+          v: 1,
+          data: {
+            payload: {
+              text: 'original',
+              phrase_id: 789,
+              user_tags: ['old1', 'old2']
+            }
+          }
+        }
+      };
+
+      strategy.writeCollectionRecord(db, 'term', initialRecord)
+        .then(function() {
+          executedQueries = []; // Clear queries
+
+          // Mock getFirstAsync to return the old record
+          db.getFirstAsync = function(sql) {
+            if (sql.indexOf('SELECT data FROM sharedb.term WHERE id = ?') !== -1) {
+              return Promise.resolve({
+                data: JSON.stringify(initialRecord)
+              });
+            }
+            return Promise.resolve(null);
+          };
+
+          // Update with different tags
+          var updatedRecord = {
+            id: 'term-456',
+            payload: {
+              collection: 'term',
+              id: 'term-456',
+              v: 2,
+              data: {
+                payload: {
+                  text: 'updated',
+                  phrase_id: 789,
+                  user_tags: ['new1', 'new2', 'new3']
+                }
+              }
+            }
+          };
+
+          return strategy.writeCollectionRecord(db, 'term', updatedRecord);
+        })
+        .then(function() {
+          // Check for deletion query
+          var deleteQueries = executedQueries.filter(function(q) {
+            return q.sql.indexOf('DELETE FROM sharedb.term_user_tag') !== -1;
+          });
+
+          expect(deleteQueries).to.have.length(1);
+          expect(deleteQueries[0].params[0]).to.equal('term-456');
+
+          // Check for new inserts
+          var insertQueries = executedQueries.filter(function(q) {
+            return q.sql.indexOf('INSERT OR REPLACE INTO sharedb.term_user_tag') !== -1;
+          });
+
+          expect(insertQueries).to.have.length(3);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('should handle empty arrays in projections', function(done) {
+      var record = {
+        id: 'term-789',
+        payload: {
+          collection: 'term',
+          id: 'term-789',
+          v: 1,
+          data: {
+            payload: {
+              text: 'no tags',
+              phrase_id: 111,
+              user_tags: [] // Empty array
+            }
+          }
+        }
+      };
+
+      strategy.writeCollectionRecord(db, 'term', record)
+        .then(function() {
+          // Should have DELETE but no INSERT
+          var deleteQueries = executedQueries.filter(function(q) {
+            return q.sql.indexOf('DELETE FROM sharedb.term_user_tag') !== -1;
+          });
+          var insertQueries = executedQueries.filter(function(q) {
+            return q.sql.indexOf('INSERT OR REPLACE INTO sharedb.term_user_tag') !== -1;
+          });
+
+          expect(deleteQueries).to.have.length(1);
+          expect(insertQueries).to.have.length(0);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('should handle missing array field in projections', function(done) {
+      var record = {
+        id: 'term-999',
+        payload: {
+          collection: 'term',
+          id: 'term-999',
+          v: 1,
+          data: {
+            payload: {
+              text: 'no user_tags field',
+              phrase_id: 222
+              // No user_tags field
+            }
+          }
+        }
+      };
+
+      strategy.writeCollectionRecord(db, 'term', record)
+        .then(function() {
+          // Should have DELETE but no INSERT
+          var deleteQueries = executedQueries.filter(function(q) {
+            return q.sql.indexOf('DELETE FROM sharedb.term_user_tag') !== -1;
+          });
+          var insertQueries = executedQueries.filter(function(q) {
+            return q.sql.indexOf('INSERT OR REPLACE INTO sharedb.term_user_tag') !== -1;
+          });
+
+          expect(deleteQueries).to.have.length(1);
+          expect(insertQueries).to.have.length(0);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('should correctly resolve complex paths with attachment alias', function(done) {
+      var record = {
+        id: 'complex-123',
+        payload: {
+          collection: 'term',
+          id: 'complex-123',
+          v: 1,
+          data: {
+            meta: {
+              created_at: { utc_time: '20250918110000000' },
+              nested: {
+                deep: {
+                  value: 'deeply-nested'
+                }
+              }
+            },
+            payload: {
+              text: 'complex',
+              phrase_id: 333,
+              user_tags: ['tag1'],
+              nested_data: {
+                inner_value: 'test'
+              }
+            }
+          }
+        }
+      };
+
+      // Test path resolution
+      var phraseId = strategy.getValueAtPath(record, 'payload.data.payload.phrase_id');
+      expect(phraseId).to.equal(333);
+
+      var deepValue = strategy.getValueAtPath(record, 'payload.data.meta.nested.deep.value');
+      expect(deepValue).to.equal('deeply-nested');
+
+      var userTags = strategy.getValueAtPath(record, 'payload.data.payload.user_tags');
+      expect(userTags).to.deep.equal(['tag1']);
+
+      var innerValue = strategy.getValueAtPath(record, 'payload.data.payload.nested_data.inner_value');
+      expect(innerValue).to.equal('test');
+
+      done();
     });
   });
 });

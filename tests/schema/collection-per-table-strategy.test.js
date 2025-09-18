@@ -32,8 +32,8 @@ describe('CollectionPerTableStrategy', function() {
                 type: 'array_expansion',
                 targetTable: 'term_tag',
                 mapping: {
-                  'term_id': '$.id',
-                  'tag': '$.ARRAY_ITEM'
+                  'term_id': 'id',
+                  'tag': '@element'
                 },
                 arrayPath: 'tags',
                 primaryKey: ['term_id', 'tag']
@@ -92,7 +92,7 @@ describe('CollectionPerTableStrategy', function() {
         });
 
         var hasCollectionTable = createStatements.some(function(h) {
-          return h.sql.indexOf('collection_terms') !== -1;
+          return h.sql.indexOf('CREATE TABLE IF NOT EXISTS terms') !== -1;
         });
 
         expect(hasCollectionTable).to.be.true;
@@ -135,8 +135,8 @@ describe('CollectionPerTableStrategy', function() {
                 type: 'array_expansion',
                 targetTable: 'term_tag',
                 mapping: {
-                  'term_id': '$.id',
-                  'tag': '$.ARRAY_ITEM'
+                  'term_id': 'id',
+                  'tag': '@element'
                 },
                 arrayPath: 'tags',
                 primaryKey: ['term_id', 'tag'],
@@ -554,6 +554,279 @@ describe('CollectionPerTableStrategy', function() {
         });
 
         expect(inventoryUpdates.length).to.be.above(0);
+        done();
+      });
+    });
+  });
+
+  describe('projections', function() {
+    var projectionConfig = {
+      collectionConfig: {
+        term: {
+          indexes: ['payload.data.payload.starred_at'],
+          encryptedFields: [],
+          projections: [
+            {
+              type: 'array_expansion',
+              targetTable: 'term_user_tag',
+              mapping: {
+                'term_id': 'id',
+                'phrase_id': 'payload.data.payload.phrase_id',
+                'tag': '@element'
+              },
+              arrayPath: 'payload.data.payload.user_tags',
+              primaryKey: ['term_id', 'tag'],
+              indexes: [
+                { columns: ['phrase_id'] },
+                { columns: ['tag', 'phrase_id'] }
+              ]
+            }
+          ]
+        }
+      }
+    };
+
+    beforeEach(function(done) {
+      strategy = new CollectionPerTableStrategy(projectionConfig);
+      strategy.initializeSchema(db, done);
+    });
+
+    it('should create projection table', function() {
+      var tables = db.getTables();
+      expect(tables).to.include('term_user_tag');
+    });
+
+    it('should populate projection when writing document with array', function(done) {
+      var termDoc = {
+        id: 'term-123',
+        payload: {
+          collection: 'term',
+          id: 'term-123',
+          v: 1,
+          data: {
+            meta: {
+              updated_at: { utc_time: '2024-01-01T00:00:00Z' }
+            },
+            payload: {
+              text: 'test',
+              phrase_id: 456,
+              user_tags: ['tag1', 'tag2', 'tag3']
+            }
+          }
+        }
+      };
+
+      strategy.writeRecords(db, { docs: [termDoc] }, function(err) {
+        expect(err).to.not.exist;
+
+        // Check projection table was populated
+        var projectionData = db.getTableData('term_user_tag');
+        expect(projectionData).to.have.lengthOf(3);
+
+        // Check first projection row
+        expect(projectionData[0].term_id).to.equal('term-123');
+        expect(projectionData[0].phrase_id).to.equal(456);
+        expect(projectionData[0].tag).to.equal('tag1');
+
+        // Check second projection row
+        expect(projectionData[1].tag).to.equal('tag2');
+
+        // Check third projection row
+        expect(projectionData[2].tag).to.equal('tag3');
+
+        done();
+      });
+    });
+
+    it('should handle empty array in document', function(done) {
+      var termDoc = {
+        id: 'term-empty',
+        payload: {
+          collection: 'term',
+          id: 'term-empty',
+          v: 1,
+          data: {
+            meta: {
+              updated_at: { utc_time: '2024-01-01T00:00:00Z' }
+            },
+            payload: {
+              text: 'empty test',
+              phrase_id: 789,
+              user_tags: []
+            }
+          }
+        }
+      };
+
+      strategy.writeRecords(db, { docs: [termDoc] }, function(err) {
+        expect(err).to.not.exist;
+
+        // Check projection table has no entries for this document
+        var projectionData = db.getTableData('term_user_tag');
+        var entries = projectionData.filter(function(row) {
+          return row.term_id === 'term-empty';
+        });
+        expect(entries).to.have.lengthOf(0);
+
+        done();
+      });
+    });
+
+    it('should handle missing array field in document', function(done) {
+      var termDoc = {
+        id: 'term-no-tags',
+        payload: {
+          collection: 'term',
+          id: 'term-no-tags',
+          v: 1,
+          data: {
+            meta: {
+              updated_at: { utc_time: '2024-01-01T00:00:00Z' }
+            },
+            payload: {
+              text: 'no tags test',
+              phrase_id: 999
+              // user_tags field is missing
+            }
+          }
+        }
+      };
+
+      strategy.writeRecords(db, { docs: [termDoc] }, function(err) {
+        expect(err).to.not.exist;
+
+        // Check projection table has no entries for this document
+        var projectionData = db.getTableData('term_user_tag');
+        var entries = projectionData.filter(function(row) {
+          return row.term_id === 'term-no-tags';
+        });
+        expect(entries).to.have.lengthOf(0);
+
+        done();
+      });
+    });
+
+    it('should update projection when document is updated', function(done) {
+      var termDoc = {
+        id: 'term-update',
+        payload: {
+          collection: 'term',
+          id: 'term-update',
+          v: 1,
+          data: {
+            meta: {
+              updated_at: { utc_time: '2024-01-01T00:00:00Z' }
+            },
+            payload: {
+              text: 'update test',
+              phrase_id: 111,
+              user_tags: ['old1', 'old2']
+            }
+          }
+        }
+      };
+
+      // Write initial document
+      strategy.writeRecords(db, { docs: [termDoc] }, function(err) {
+        expect(err).to.not.exist;
+
+        // Update document with new tags
+        termDoc.payload.v = 2;
+        termDoc.payload.data.payload.user_tags = ['new1', 'new2', 'new3'];
+
+        strategy.writeRecords(db, { docs: [termDoc] }, function(err) {
+          expect(err).to.not.exist;
+
+          // Check projection table has new tags
+          var projectionData = db.getTableData('term_user_tag');
+          var entries = projectionData.filter(function(row) {
+            return row.term_id === 'term-update';
+          });
+
+          expect(entries).to.have.lengthOf(3);
+          var tags = entries.map(function(e) { return e.tag; });
+          expect(tags).to.include('new1');
+          expect(tags).to.include('new2');
+          expect(tags).to.include('new3');
+          expect(tags).to.not.include('old1');
+          expect(tags).to.not.include('old2');
+
+          done();
+        });
+      });
+    });
+
+    it('should handle paths with dots correctly', function(done) {
+      // Test that paths like 'payload.data.payload.phrase_id' are resolved correctly
+      var termDoc = {
+        id: 'term-path-test',
+        payload: {
+          collection: 'term',
+          id: 'term-path-test',
+          v: 1,
+          data: {
+            meta: {
+              updated_at: { utc_time: '2024-01-01T00:00:00Z' }
+            },
+            payload: {
+              text: 'path test',
+              phrase_id: 42,
+              user_tags: ['test-tag']
+            }
+          }
+        }
+      };
+
+      strategy.writeRecords(db, { docs: [termDoc] }, function(err) {
+        expect(err).to.not.exist;
+
+        // Check that phrase_id was extracted correctly from the path
+        var projectionData = db.getTableData('term_user_tag');
+        var entry = projectionData.find(function(row) {
+          return row.term_id === 'term-path-test';
+        });
+
+        expect(entry).to.exist;
+        expect(entry.phrase_id).to.equal(42);
+        expect(entry.phrase_id).to.not.equal('payload.data.payload.phrase_id'); // Should not be the path string
+
+        done();
+      });
+    });
+
+    it('should handle special @element mapping', function(done) {
+      var termDoc = {
+        id: 'term-element',
+        payload: {
+          collection: 'term',
+          id: 'term-element',
+          v: 1,
+          data: {
+            meta: {
+              updated_at: { utc_time: '2024-01-01T00:00:00Z' }
+            },
+            payload: {
+              text: 'element test',
+              phrase_id: 333,
+              user_tags: ['elementTag1', 'elementTag2']
+            }
+          }
+        }
+      };
+
+      strategy.writeRecords(db, { docs: [termDoc] }, function(err) {
+        expect(err).to.not.exist;
+
+        // Check that @element was replaced with actual array values
+        var projectionData = db.getTableData('term_user_tag');
+        var entries = projectionData.filter(function(row) {
+          return row.term_id === 'term-element';
+        });
+
+        expect(entries).to.have.lengthOf(2);
+        expect(entries[0].tag).to.equal('elementTag1');
+        expect(entries[1].tag).to.equal('elementTag2');
+
         done();
       });
     });

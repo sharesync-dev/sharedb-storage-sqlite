@@ -42,8 +42,8 @@ function test() {
             type: 'array_expansion',
             targetTable: 'term_tag',
             mapping: {
-              'term_id': '$.id',
-              'tag': '$.ARRAY_ITEM'
+              'term_id': 'id',
+              'tag': '@element'
             },
             arrayPath: 'payload.tags',
             primaryKey: ['term_id', 'tag']

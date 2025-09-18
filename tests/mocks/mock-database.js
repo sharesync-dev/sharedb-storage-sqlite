@@ -296,6 +296,14 @@ MockDatabase.prototype.hasTable = function(tableName) {
   return this.data.has(tableName);
 };
 
+MockDatabase.prototype.getTables = function() {
+  var tables = [];
+  this.data.forEach(function(value, name) {
+    tables.push(name);
+  });
+  return tables;
+};
+
 MockDatabase.prototype.getTableData = function(tableName) {
   return this.data.get(tableName) || [];
 };
