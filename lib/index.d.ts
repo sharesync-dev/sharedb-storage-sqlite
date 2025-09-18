@@ -217,14 +217,23 @@ export declare class CollectionPerTableStrategy extends BaseSchemaStrategy {
 }
 
 /**
+ * Attached collection-per-table schema strategy options
+ */
+export interface AttachedCollectionPerTableStrategyOptions extends SchemaStrategyOptions {
+  attachments?: DatabaseAttachment[];
+  attachmentAlias?: string;
+  createAdapterForPath?: (dbPath: string) => SqliteAdapter;
+}
+
+/**
  * Attached collection-per-table schema strategy
  * Similar to CollectionPerTableStrategy but optimized for attached databases
  * Uses different inventory schema for better multi-database support
  */
 export declare class AttachedCollectionPerTableStrategy extends CollectionPerTableStrategy {
-  constructor(options?: SchemaStrategyOptions & {
-    attachments?: DatabaseAttachment[];
-  });
+  readonly attachmentAlias: string | null;
+  constructor(options?: AttachedCollectionPerTableStrategyOptions);
+  preInitializeDatabase(dbPath: string, createAdapter: (dbPath: string) => SqliteAdapter): Promise<void>;
 }
 
 /**
