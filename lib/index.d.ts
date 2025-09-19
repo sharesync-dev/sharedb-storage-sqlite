@@ -5,11 +5,15 @@
  * that are compatible with ShareDB's DurableStorage interface.
  */
 
+// ShareDB error type that matches the official ShareDB interface
+export interface ShareDBError {
+  code: number;
+  message: string;
+}
+
 // Import base types from ShareDB
 // In practice, consumers will have @shaxpir/sharedb as a peer dependency
-export interface DurableStorageCallback<T = any> {
-  (error: Error | null, result?: T): void;
-}
+export type DurableStorageCallback<T = any> = (error: ShareDBError | null, result?: T) => void;
 
 export interface DurableStorageRecord {
   id: string;
