@@ -464,6 +464,65 @@ describe('CollectionPerTableStrategy', function() {
         done();
       });
     });
+
+    it('should read record with compound ID correctly', function(done) {
+      // First write a record with compound ID (as ShareDB does)
+      var recordData = {
+        id: 'terms/test123',
+        payload: {
+          v: 1,
+          type: 'json',
+          data: {
+            meta: { kind: 'terms', ref: 'test123' },
+            payload: { content: 'test' }
+          }
+        }
+      };
+
+      // Simulate how writeCollectionRecord stores the record
+      // The mock expects records to have 'id' and 'data' fields
+      db.setTableData('terms', [{
+        id: 'terms/test123',
+        data: JSON.stringify(recordData)
+      }]);
+
+      // Now try to read it using just the doc ID (not the compound ID)
+      strategy.readRecord(db, 'docs', 'terms', 'test123', function(err, retrievedRecord) {
+        expect(err).to.not.exist;
+        expect(retrievedRecord).to.exist;
+        expect(retrievedRecord.id).to.equal('terms/test123');
+        expect(retrievedRecord.payload.data.meta.ref).to.equal('test123');
+        done();
+      });
+    });
+
+    it('should handle compound ID with special characters', function(done) {
+      // Test with ID containing special characters
+      var recordData = {
+        id: 'manifest/QyCgGHk2qzIHBojq',
+        payload: {
+          v: 54,
+          type: 'json',
+          data: {
+            meta: { kind: 'manifest', ref: 'QyCgGHk2qzIHBojq' },
+            payload: { collections: {} }
+          }
+        }
+      };
+
+      // The mock expects records to have 'id' and 'data' fields
+      db.setTableData('manifest', [{
+        id: 'manifest/QyCgGHk2qzIHBojq',
+        data: JSON.stringify(recordData)
+      }]);
+
+      strategy.readRecord(db, 'docs', 'manifest', 'QyCgGHk2qzIHBojq', function(err, retrievedRecord) {
+        expect(err).to.not.exist;
+        expect(retrievedRecord).to.exist;
+        expect(retrievedRecord.id).to.equal('manifest/QyCgGHk2qzIHBojq');
+        done();
+      });
+    });
   });
 
   describe('deleteRecord', function() {
@@ -506,6 +565,41 @@ describe('CollectionPerTableStrategy', function() {
         done();
       });
     });
+
+    it('should delete record with compound ID correctly', function(done) {
+      // Setup: Add a record with compound ID
+      var recordData = {
+        id: 'terms/deleteTest',
+        payload: {
+          v: 1,
+          type: 'json',
+          data: {
+            meta: { kind: 'terms', ref: 'deleteTest' },
+            payload: { content: 'test' }
+          }
+        }
+      };
+
+      db.setTableData('terms', [{
+        id: 'terms/deleteTest',
+        data: JSON.stringify(recordData)
+      }]);
+
+      // Delete using just the doc ID (not the compound ID)
+      strategy.deleteRecord(db, 'docs', 'terms', 'deleteTest', function(err) {
+        expect(err).to.not.exist;
+
+        var history = db.getSqlHistory();
+        var deleteStatements = history.filter(function(h) {
+          return h.sql.indexOf('DELETE FROM terms') !== -1;
+        });
+
+        expect(deleteStatements.length).to.be.above(0);
+        // Verify the DELETE used the compound ID
+        expect(deleteStatements[0].params[0]).to.equal('terms/deleteTest');
+        done();
+      });
+    });
   });
 
   describe('inventory management', function() {
@@ -538,6 +632,74 @@ describe('CollectionPerTableStrategy', function() {
         expect(inventoryUpdates.length).to.be.above(0);
         done();
       });
+    });
+
+    it('should write inventory from meta using INSERT OR REPLACE', function(done) {
+      // Create inventory meta with multiple items
+      var inventoryMeta = {
+        id: 'inventory',
+        payload: {
+          collections: {
+            manifest: {
+              'QyCgGHk2qzIHBojq': { v: 54 },
+              'AnotherManifest': { v: 10 }
+            },
+            terms: {
+              'term1': { v: 1 },
+              'term2': { v: 2 }
+            }
+          }
+        }
+      };
+
+      strategy.writeInventoryFromMeta(db, inventoryMeta).then(function() {
+        var history = db.getSqlHistory();
+        var insertStatements = history.filter(function(h) {
+          return h.sql.indexOf('INSERT OR REPLACE INTO sharedb_inventory') !== -1;
+        });
+
+        // Should have one INSERT OR REPLACE for each item (4 total)
+        expect(insertStatements.length).to.equal(4);
+
+        // Verify the statements use INSERT OR REPLACE (not DELETE + INSERT)
+        var deleteStatements = history.filter(function(h) {
+          return h.sql.indexOf('DELETE FROM sharedb_inventory') !== -1;
+        });
+        expect(deleteStatements.length).to.equal(0);
+
+        done();
+      }).catch(done);
+    });
+
+    it('should preserve existing inventory when writing from meta', function(done) {
+      // First add some existing inventory
+      db.setTableData('sharedb_inventory', [
+        { collection: 'existing', doc_id: 'keep-me', version_num: 99, version_str: null, has_pending: 0 }
+      ]);
+
+      // Now write inventory from meta
+      var inventoryMeta = {
+        id: 'inventory',
+        payload: {
+          collections: {
+            manifest: {
+              'QyCgGHk2qzIHBojq': { v: 54 }
+            }
+          }
+        }
+      };
+
+      strategy.writeInventoryFromMeta(db, inventoryMeta).then(function() {
+        // The existing inventory item should still be there
+        // (we can't check the actual table data in the mock, but we can verify no DELETE was issued)
+        var history = db.getSqlHistory();
+        var deleteStatements = history.filter(function(h) {
+          return h.sql.indexOf('DELETE FROM sharedb_inventory') !== -1;
+        });
+        expect(deleteStatements.length).to.equal(0);
+
+        done();
+      }).catch(done);
     });
   });
 
