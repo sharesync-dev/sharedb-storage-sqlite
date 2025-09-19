@@ -31,11 +31,12 @@
   "peerDependencies": {
     "@shaxpir/sharedb": ">=6.0.0"
   },
-  "dependencies": {},
   "devDependencies": {
-    "mocha": "^10.2.0",
+    "@shaxpir/sharedb-storage-node-sqlite": "^2.0.0",
     "chai": "^4.3.7",
-    "nyc": "^15.1.0"
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
+    "sql.js": "^1.13.0"
   },
   "files": [
     "lib/",

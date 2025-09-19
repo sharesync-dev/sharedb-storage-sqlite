@@ -4,14 +4,16 @@
 
 var expect = require('chai').expect;
 var CollectionPerTableStrategy = require('../../lib/schema/collection-per-table-strategy');
-var MockDatabase = require('../mocks/mock-database');
+var TestDbHelper = require('../helpers/test-db-helper');
 
 describe('CollectionPerTableStrategy', function() {
   var strategy;
   var db;
 
-  beforeEach(function() {
-    db = new MockDatabase();
+  beforeEach(async function() {
+    helper = new TestDbHelper('test');
+    db = await helper.createAdapter();
+    
   });
 
   describe('initialization', function() {

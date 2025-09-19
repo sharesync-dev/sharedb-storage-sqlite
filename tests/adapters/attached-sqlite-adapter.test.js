@@ -1,15 +1,17 @@
 const { expect } = require('chai');
 const { AttachedSqliteAdapter } = require('../../lib');
-const MockDatabase = require('../mocks/mock-database');
+const SqlJsTestAdapter = require('../mocks/sql-js-test-adapter');
 
 describe('AttachedSqliteAdapter', function() {
   let mockDb;
   let mockAttachedDb;
 
-  beforeEach(function() {
+  beforeEach(async function() {
     // Create fresh mock databases for each test
-    mockDb = new MockDatabase();
-    mockAttachedDb = new MockDatabase();
+    mockDb = new SqlJsTestAdapter();
+    mockAttachedDb = new SqlJsTestAdapter();
+    await mockDb.init();
+    await mockAttachedDb.init();
   });
 
   describe('Basic Attachment', function() {

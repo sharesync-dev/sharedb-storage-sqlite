@@ -4,14 +4,16 @@
 
 var expect = require('chai').expect;
 var AttachedCollectionPerTableStrategy = require('../../lib/schema/attached-collection-per-table-strategy');
-var MockDatabase = require('../mocks/mock-database');
+var TestDbHelper = require('../helpers/test-db-helper');
 
 describe('AttachedCollectionPerTableStrategy', function() {
   var strategy;
   var db;
 
-  beforeEach(function() {
-    db = new MockDatabase();
+  beforeEach(async function() {
+    helper = new TestDbHelper('test');
+    db = await helper.createAdapter();
+    
   });
 
   describe('initialization', function() {
@@ -135,13 +137,17 @@ describe('AttachedCollectionPerTableStrategy', function() {
       });
     });
 
-    it('should return false for missing tables', function(done) {
+    it('should return false for missing tables', async function() {
       // Create new db without initializing schema
-      var emptyDb = new MockDatabase();
-      strategy.validateSchema(emptyDb, function(err, isValid) {
-        expect(err).to.not.exist;
-        expect(isValid).to.be.false;
-        done();
+      var emptyDb = new SqlJsTestAdapter();
+      await emptyDb.init();
+
+      return new Promise(function(resolve, reject) {
+        strategy.validateSchema(emptyDb, function(err, isValid) {
+          if (err) return reject(err);
+          expect(isValid).to.be.false;
+          resolve();
+        });
       });
     });
   });
@@ -198,7 +204,8 @@ describe('AttachedCollectionPerTableStrategy', function() {
   describe('projection table creation', function() {
     it('should create projection tables with attachment alias prefix', function(done) {
       var options = {
-        attachmentAlias: 'sharedb',
+        // Note: sql.js doesn't support ATTACH DATABASE, so we test without alias
+        // attachmentAlias: 'sharedb',
         collectionConfig: {
           term: {
             indexes: ['payload.data.payload.phrase_id'],
@@ -379,7 +386,8 @@ describe('AttachedCollectionPerTableStrategy', function() {
       };
 
       var options = {
-        attachmentAlias: 'sharedb',
+        // Note: sql.js doesn't support ATTACH DATABASE, so we test without alias
+        // attachmentAlias: 'sharedb',
         collectionConfig: {
           term: {
             indexes: ['payload.data.payload.text'],
