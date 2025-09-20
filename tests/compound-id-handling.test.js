@@ -77,14 +77,15 @@ describe('Compound ID Handling', function() {
       expect(inventoryRows).to.have.lengthOf(1);
       expect(inventoryRows[0].doc_id).to.equal('m3ttEidoeclNAhlT'); // Simple ID, not compound
 
-      // Document table should have compound ID for backward compatibility
+      // Document table should have simple ID
       const docRows = await db.getAllAsync(
         'SELECT * FROM manifest WHERE id = ?',
-        ['manifest/m3ttEidoeclNAhlT']
+        ['m3ttEidoeclNAhlT']
       );
 
       expect(docRows).to.have.lengthOf(1);
       const storedDoc = JSON.parse(docRows[0].data);
+      // The data still contains the compound ID
       expect(storedDoc.id).to.equal('manifest/m3ttEidoeclNAhlT');
     });
 
@@ -295,7 +296,7 @@ describe('Compound ID Handling', function() {
       // Verify document is removed from collection table
       const docRows = await db.getAllAsync(
         'SELECT * FROM posts WHERE id = ?',
-        ['posts/post1']
+        ['post1']  // Simple ID in table
       );
       expect(docRows).to.have.lengthOf(0);
     });
