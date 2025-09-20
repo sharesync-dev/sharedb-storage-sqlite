@@ -88,7 +88,7 @@ describe('Compound ID Handling', function() {
       expect(storedDoc.id).to.equal('manifest/m3ttEidoeclNAhlT');
     });
 
-    it('should handle nested compound IDs correctly', async function() {
+    it('should reject documents with slashes in document ID', async function() {
       const config = {
         collectionConfig: {
           items: {
@@ -107,7 +107,7 @@ describe('Compound ID Handling', function() {
         });
       });
 
-      // Write a document with nested compound ID
+      // Try to write a document with slashes in the document ID part
       const doc = {
         id: 'items/category/subcategory/item123',
         payload: {
@@ -115,38 +115,27 @@ describe('Compound ID Handling', function() {
           v: 1,
           type: 'json0',
           data: {
-            name: 'Nested Item'
+            name: 'Invalid Item'
           }
         }
       };
 
-      await new Promise((resolve, reject) => {
-        strategy.writeRecords(db, { docs: [doc] }, (err) => {
-          if (err) return reject(err);
-          resolve();
+      // Should throw an error because document ID contains slashes
+      let errorThrown = false;
+      try {
+        await new Promise((resolve, reject) => {
+          strategy.writeRecords(db, { docs: [doc] }, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
         });
-      });
+      } catch (error) {
+        errorThrown = true;
+        expect(error.message).to.include('Document ID part of compound key cannot contain slashes');
+        expect(error.message).to.include('category/subcategory/item123');
+      }
 
-      // Check inventory - should have simple ID (everything after collection/)
-      const inventoryRows = await db.getAllAsync(
-        'SELECT * FROM sharedb_inventory WHERE collection = ?',
-        ['items']
-      );
-
-      expect(inventoryRows).to.have.lengthOf(1);
-      expect(inventoryRows[0].doc_id).to.equal('category/subcategory/item123');
-
-      // Document should still be retrievable
-      const result = await new Promise((resolve, reject) => {
-        strategy.readRecord(db, 'doc', 'items', 'category/subcategory/item123', (err, record) => {
-          if (err) return reject(err);
-          resolve(record);
-        });
-      });
-
-      expect(result).to.exist;
-      expect(result.id).to.equal('items/category/subcategory/item123');
-      expect(result.payload.data.name).to.equal('Nested Item');
+      expect(errorThrown).to.be.true;
     });
 
     it('should update inventory correctly through updateInventory method', async function() {
@@ -392,9 +381,8 @@ describe('Compound ID Handling', function() {
         await strategy.updateInventoryForRecord(db, 'test', 'test/doc123', 1, false);
       } catch (error) {
         errorThrown = true;
-        expect(error.message).to.include('appears to be a compound ID');
+        expect(error.message).to.include('Document ID cannot contain slashes');
         expect(error.message).to.include('test/doc123');
-        expect(error.message).to.include('Collection prefix');
       }
 
       expect(errorThrown).to.be.true;
@@ -427,7 +415,7 @@ describe('Compound ID Handling', function() {
       });
 
       expect(result).to.exist;
-      expect(result.message).to.include('appears to be a compound ID');
+      expect(result.message).to.include('Document ID cannot contain slashes');
       expect(result.message).to.include('items/item456');
     });
 
@@ -459,17 +447,17 @@ describe('Compound ID Handling', function() {
         await attachedStrategy.updateInventoryForRecord(db, 'data', 'data/record789', 1, false);
       } catch (error) {
         errorThrown = true;
-        expect(error.message).to.include('appears to be a compound ID');
+        expect(error.message).to.include('Document ID cannot contain slashes');
         expect(error.message).to.include('data/record789');
       }
 
       expect(errorThrown).to.be.true;
     });
 
-    it('should accept nested paths as simple IDs after stripping collection prefix', async function() {
+    it('should reject collection names with slashes', async function() {
       const config = {
         collectionConfig: {
-          nested: {
+          test: {
             indexes: [],
             encryptedFields: []
           }
@@ -485,17 +473,17 @@ describe('Compound ID Handling', function() {
         });
       });
 
-      // This should work - it's a nested path but not a compound ID with collection prefix
-      await strategy.updateInventoryForRecord(db, 'nested', 'category/subcategory/item', 1, false);
+      // Try to use a collection name with slashes
+      let errorThrown = false;
+      try {
+        await strategy.updateInventoryForRecord(db, 'bad/collection', 'doc123', 1, false);
+      } catch (error) {
+        errorThrown = true;
+        expect(error.message).to.include('Collection name cannot contain slashes');
+        expect(error.message).to.include('bad/collection');
+      }
 
-      // Verify it was stored correctly
-      const inventory = await db.getAllAsync(
-        'SELECT * FROM sharedb_inventory WHERE collection = ? AND doc_id = ?',
-        ['nested', 'category/subcategory/item']
-      );
-
-      expect(inventory).to.have.lengthOf(1);
-      expect(inventory[0].doc_id).to.equal('category/subcategory/item');
+      expect(errorThrown).to.be.true;
     });
 
     it('should prevent accidental storage of compound IDs through writeRecords', async function() {

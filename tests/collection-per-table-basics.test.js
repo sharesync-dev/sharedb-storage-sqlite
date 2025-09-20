@@ -128,7 +128,7 @@ describe('CollectionPerTableStrategy Basics', function() {
     expect(result.payload.data.name).to.equal('Alice');
   });
 
-  it('should handle compound IDs correctly', async function() {
+  it('should handle simple compound IDs correctly', async function() {
     const config = {
       collectionConfig: {
         items: {
@@ -147,9 +147,9 @@ describe('CollectionPerTableStrategy Basics', function() {
       });
     });
 
-    // Write a document with compound ID
+    // Write a document with simple compound ID (no nested slashes)
     const doc = {
-      id: 'items/category/subcategory/item1',
+      id: 'items/item123',
       payload: {
         collection: 'items',
         v: 1,
@@ -169,14 +169,14 @@ describe('CollectionPerTableStrategy Basics', function() {
 
     // Read the document back
     const result = await new Promise((resolve, reject) => {
-      strategy.readRecord(db, 'doc', 'items', 'category/subcategory/item1', (err, record) => {
+      strategy.readRecord(db, 'doc', 'items', 'item123', (err, record) => {
         if (err) return reject(err);
         resolve(record);
       });
     });
 
     expect(result).to.exist;
-    expect(result.id).to.equal('items/category/subcategory/item1');
+    expect(result.id).to.equal('items/item123');
     expect(result.payload.data.title).to.equal('Test Item');
   });
 
