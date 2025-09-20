@@ -234,8 +234,8 @@ describe('CollectionPerTableStrategy Basics', function() {
     );
 
     expect(inventory).to.have.lengthOf(2);
-    expect(inventory[0].doc_id).to.equal('articles/article1');
-    expect(inventory[1].doc_id).to.equal('articles/article2');
+    expect(inventory[0].doc_id).to.equal('article1');
+    expect(inventory[1].doc_id).to.equal('article2');
   });
 
   it('should delete documents and update inventory', async function() {
