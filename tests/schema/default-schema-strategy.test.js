@@ -164,8 +164,8 @@ describe('DefaultSchemaStrategy', function() {
     it('should write docs records', async function() {
       var records = {
         docs: [
-          { id: 'doc1', payload: { content: 'test1' } },
-          { id: 'doc2', payload: { content: 'test2' } }
+          { id: 'terms/doc1', payload: { content: 'test1' } },
+          { id: 'terms/doc2', payload: { content: 'test2' } }
         ]
       };
 
@@ -179,15 +179,15 @@ describe('DefaultSchemaStrategy', function() {
       // Verify records were written
       const rows = await db.getAllAsync('SELECT * FROM docs ORDER BY id');
       expect(rows).to.have.lengthOf(2);
-      expect(rows[0].id).to.equal('doc1');
-      expect(rows[1].id).to.equal('doc2');
+      expect(rows[0].id).to.equal('terms/doc1');
+      expect(rows[1].id).to.equal('terms/doc2');
     });
 
     it('should write meta records', async function() {
       var records = {
         meta: [
-          { id: 'meta1', payload: { value: 'test1' } },
-          { id: 'meta2', payload: { value: 'test2' } }
+          { id: 'meta/meta1', payload: { value: 'test1' } },
+          { id: 'meta/meta2', payload: { value: 'test2' } }
         ]
       };
 
@@ -201,8 +201,8 @@ describe('DefaultSchemaStrategy', function() {
       // Verify records were written
       const rows = await db.getAllAsync('SELECT * FROM meta ORDER BY id');
       expect(rows).to.have.lengthOf(2);
-      expect(rows[0].id).to.equal('meta1');
-      expect(rows[1].id).to.equal('meta2');
+      expect(rows[0].id).to.equal('meta/meta1');
+      expect(rows[1].id).to.equal('meta/meta2');
     });
 
     it('should encrypt docs records when encryption is enabled', async function() {
@@ -223,7 +223,7 @@ describe('DefaultSchemaStrategy', function() {
 
       var records = {
         docs: [
-          { id: 'doc1', payload: { content: 'secret' } }
+          { id: 'terms/doc1', payload: { content: 'secret' } }
         ]
       };
 
@@ -235,7 +235,7 @@ describe('DefaultSchemaStrategy', function() {
       });
 
       // Verify encryption
-      const row = await db.getFirstAsync('SELECT * FROM docs WHERE id = ?', ['doc1']);
+      const row = await db.getFirstAsync('SELECT * FROM docs WHERE id = ?', ['terms/doc1']);
       const data = JSON.parse(row.data);
       expect(data.encrypted_payload).to.exist;
       expect(data.encrypted_payload).to.contain('encrypted:');
@@ -257,30 +257,30 @@ describe('DefaultSchemaStrategy', function() {
       // Insert test data
       await db.runAsync(
         'INSERT INTO docs (id, data) VALUES (?, ?)',
-        ['doc1', JSON.stringify({ id: 'doc1', payload: { content: 'test' } })]
+        ['terms/doc1', JSON.stringify({ id: 'terms/doc1', payload: { content: 'test' } })]
       );
       await db.runAsync(
         'INSERT INTO meta (id, data) VALUES (?, ?)',
-        ['meta1', JSON.stringify({ key: 'value' })]
+        ['meta/meta1', JSON.stringify({ key: 'value' })]
       );
     });
 
     it('should read a docs record', async function() {
       const record = await new Promise(function(resolve, reject) {
-        strategy.readRecord(db, 'docs', 'terms', 'doc1', function(err, record) {
+        strategy.readRecord(db, 'docs', 'terms', 'terms/doc1', function(err, record) {
           if (err) return reject(err);
           resolve(record);
         });
       });
 
       expect(record).to.exist;
-      expect(record.id).to.equal('doc1');
+      expect(record.id).to.equal('terms/doc1');
       expect(record.payload.content).to.equal('test');
     });
 
     it('should read a meta record', async function() {
       const record = await new Promise(function(resolve, reject) {
-        strategy.readRecord(db, 'meta', '__meta__', 'meta1', function(err, record) {
+        strategy.readRecord(db, 'meta', '__meta__', 'meta/meta1', function(err, record) {
           if (err) return reject(err);
           resolve(record);
         });
@@ -292,7 +292,7 @@ describe('DefaultSchemaStrategy', function() {
 
     it('should return null for non-existent record', async function() {
       const record = await new Promise(function(resolve, reject) {
-        strategy.readRecord(db, 'docs', 'terms', 'nonexistent', function(err, record) {
+        strategy.readRecord(db, 'docs', 'terms', 'terms/nonexistent', function(err, record) {
           if (err) return reject(err);
           resolve(record);
         });
@@ -312,14 +312,14 @@ describe('DefaultSchemaStrategy', function() {
       // Insert encrypted data
       await db.runAsync(
         'INSERT OR REPLACE INTO docs (id, data) VALUES (?, ?)',
-        ['doc2', JSON.stringify({
-          id: 'doc2',
+        ['terms/doc2', JSON.stringify({
+          id: 'terms/doc2',
           encrypted_payload: 'encrypted:{"content":"secret"}'
         })]
       );
 
       const record = await new Promise(function(resolve, reject) {
-        strategy.readRecord(db, 'docs', 'terms', 'doc2', function(err, record) {
+        strategy.readRecord(db, 'docs', 'terms', 'terms/doc2', function(err, record) {
           if (err) return reject(err);
           resolve(record);
         });
@@ -345,20 +345,20 @@ describe('DefaultSchemaStrategy', function() {
       // Insert test data
       await db.runAsync(
         'INSERT INTO docs (id, data) VALUES (?, ?)',
-        ['doc1', JSON.stringify({ id: 'doc1', payload: { content: 'test1' } })]
+        ['terms/doc1', JSON.stringify({ id: 'terms/doc1', payload: { content: 'test1' } })]
       );
       await db.runAsync(
         'INSERT INTO docs (id, data) VALUES (?, ?)',
-        ['doc2', JSON.stringify({ id: 'doc2', payload: { content: 'test2' } })]
+        ['terms/doc2', JSON.stringify({ id: 'terms/doc2', payload: { content: 'test2' } })]
       );
       await db.runAsync(
         'INSERT INTO docs (id, data) VALUES (?, ?)',
-        ['doc3', JSON.stringify({ id: 'doc3', payload: { content: 'test3' } })]
+        ['terms/doc3', JSON.stringify({ id: 'terms/doc3', payload: { content: 'test3' } })]
       );
     });
 
     it('should read multiple records by ID', async function() {
-      var ids = ['doc1', 'doc3'];
+      var ids = ['terms/doc1', 'terms/doc3'];
 
       const records = await new Promise(function(resolve, reject) {
         strategy.readRecordsBulk(db, 'docs', 'terms', ids, function(err, records) {
@@ -368,8 +368,8 @@ describe('DefaultSchemaStrategy', function() {
       });
 
       expect(records).to.have.lengthOf(2);
-      var doc1 = records.find(function(r) { return r.id === 'doc1'; });
-      var doc3 = records.find(function(r) { return r.id === 'doc3'; });
+      var doc1 = records.find(function(r) { return r.id === 'terms/doc1'; });
+      var doc3 = records.find(function(r) { return r.id === 'terms/doc3'; });
       expect(doc1.payload.content).to.equal('test1');
       expect(doc3.payload.content).to.equal('test3');
     });
@@ -402,25 +402,25 @@ describe('DefaultSchemaStrategy', function() {
       // Insert test data
       await db.runAsync(
         'INSERT INTO docs (id, data) VALUES (?, ?)',
-        ['doc1', JSON.stringify({ id: 'doc1', payload: { content: 'test' } })]
+        ['terms/doc1', JSON.stringify({ id: 'terms/doc1', payload: { content: 'test' } })]
       );
     });
 
     it('should delete a record', async function() {
       // Verify record exists
-      let row = await db.getFirstAsync('SELECT * FROM docs WHERE id = ?', ['doc1']);
+      let row = await db.getFirstAsync('SELECT * FROM docs WHERE id = ?', ['terms/doc1']);
       expect(row).to.exist;
 
       // Delete it
       await new Promise(function(resolve, reject) {
-        strategy.deleteRecord(db, 'docs', 'terms', 'doc1', function(err) {
+        strategy.deleteRecord(db, 'docs', 'terms', 'terms/doc1', function(err) {
           if (err) return reject(err);
           resolve();
         });
       });
 
       // Verify it's gone
-      row = await db.getFirstAsync('SELECT * FROM docs WHERE id = ?', ['doc1']);
+      row = await db.getFirstAsync('SELECT * FROM docs WHERE id = ?', ['terms/doc1']);
       expect(row).to.be.null;
     });
   });
