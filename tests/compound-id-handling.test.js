@@ -365,4 +365,185 @@ describe('Compound ID Handling', function() {
       expect(inventoryRows[0].doc_id).to.equal('session123'); // Simple ID, not compound
     });
   });
+
+  describe('Guard Against Compound IDs in Inventory', function() {
+    it('should throw error when trying to directly insert compound ID in inventory via updateInventoryForRecord', async function() {
+      const config = {
+        collectionConfig: {
+          test: {
+            indexes: [],
+            encryptedFields: []
+          }
+        }
+      };
+
+      strategy = new CollectionPerTableStrategy(config);
+
+      await new Promise((resolve, reject) => {
+        strategy.initializeSchema(db, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+
+      // Try to directly insert a compound ID into inventory
+      let errorThrown = false;
+      try {
+        await strategy.updateInventoryForRecord(db, 'test', 'test/doc123', 1, false);
+      } catch (error) {
+        errorThrown = true;
+        expect(error.message).to.include('appears to be a compound ID');
+        expect(error.message).to.include('test/doc123');
+        expect(error.message).to.include('Collection prefix');
+      }
+
+      expect(errorThrown).to.be.true;
+    });
+
+    it('should throw error when trying to update inventory with compound ID via updateInventoryItem', async function() {
+      const config = {
+        collectionConfig: {
+          items: {
+            indexes: [],
+            encryptedFields: []
+          }
+        }
+      };
+
+      strategy = new CollectionPerTableStrategy(config);
+
+      await new Promise((resolve, reject) => {
+        strategy.initializeSchema(db, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+
+      // Try to update inventory with compound ID
+      const result = await new Promise((resolve) => {
+        strategy.updateInventoryItem(db, 'items', 'items/item456', 1, 'add', (err) => {
+          resolve(err);
+        });
+      });
+
+      expect(result).to.exist;
+      expect(result.message).to.include('appears to be a compound ID');
+      expect(result.message).to.include('items/item456');
+    });
+
+    it('should throw error in AttachedCollectionPerTableStrategy when compound ID is used', async function() {
+      const config = {
+        attachmentAlias: 'sharedb',
+        collectionConfig: {
+          data: {
+            indexes: [],
+            encryptedFields: []
+          }
+        }
+      };
+
+      const attachedStrategy = new AttachedCollectionPerTableStrategy(config);
+      // Remove alias for initialization
+      attachedStrategy.attachmentAlias = null;
+
+      await new Promise((resolve, reject) => {
+        attachedStrategy.initializeSchema(db, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+
+      // Try to insert compound ID
+      let errorThrown = false;
+      try {
+        await attachedStrategy.updateInventoryForRecord(db, 'data', 'data/record789', 1, false);
+      } catch (error) {
+        errorThrown = true;
+        expect(error.message).to.include('appears to be a compound ID');
+        expect(error.message).to.include('data/record789');
+      }
+
+      expect(errorThrown).to.be.true;
+    });
+
+    it('should accept nested paths as simple IDs after stripping collection prefix', async function() {
+      const config = {
+        collectionConfig: {
+          nested: {
+            indexes: [],
+            encryptedFields: []
+          }
+        }
+      };
+
+      strategy = new CollectionPerTableStrategy(config);
+
+      await new Promise((resolve, reject) => {
+        strategy.initializeSchema(db, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+
+      // This should work - it's a nested path but not a compound ID with collection prefix
+      await strategy.updateInventoryForRecord(db, 'nested', 'category/subcategory/item', 1, false);
+
+      // Verify it was stored correctly
+      const inventory = await db.getAllAsync(
+        'SELECT * FROM sharedb_inventory WHERE collection = ? AND doc_id = ?',
+        ['nested', 'category/subcategory/item']
+      );
+
+      expect(inventory).to.have.lengthOf(1);
+      expect(inventory[0].doc_id).to.equal('category/subcategory/item');
+    });
+
+    it('should prevent accidental storage of compound IDs through writeRecords', async function() {
+      const config = {
+        collectionConfig: {
+          protected: {
+            indexes: [],
+            encryptedFields: []
+          }
+        }
+      };
+
+      strategy = new CollectionPerTableStrategy(config);
+
+      await new Promise((resolve, reject) => {
+        strategy.initializeSchema(db, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+
+      // Write a document - the compound ID should be stripped automatically
+      const doc = {
+        id: 'protected/doc999',
+        payload: {
+          collection: 'protected',
+          v: 1,
+          type: 'json0',
+          data: { content: 'test' }
+        }
+      };
+
+      await new Promise((resolve, reject) => {
+        strategy.writeRecords(db, { docs: [doc] }, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+
+      // Verify inventory has simple ID, not compound
+      const inventory = await db.getAllAsync(
+        'SELECT * FROM sharedb_inventory WHERE collection = ?',
+        ['protected']
+      );
+
+      expect(inventory).to.have.lengthOf(1);
+      expect(inventory[0].doc_id).to.equal('doc999'); // Simple ID
+      expect(inventory[0].doc_id).to.not.include('/'); // No slash in inventory ID
+    });
+  });
 });
