@@ -1,6 +1,6 @@
 {
   "name": "@shaxpir/sharedb-storage-sqlite",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "description": "Shared SQLite storage components for ShareDB adapters",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -49,6 +49,6 @@
     "test-cover": "nyc --temp-dir=coverage -r text -r lcov npm test"
   },
   "dependencies": {
-    "@shaxpir/squilt": "^1.1.0"
+    "@shaxpir/squilt": "^1.2.0"
   }
 }
