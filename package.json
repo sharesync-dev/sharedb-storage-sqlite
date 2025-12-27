@@ -47,5 +47,8 @@
   "scripts": {
     "test": "mocha tests/**/*.test.js tests/*.js",
     "test-cover": "nyc --temp-dir=coverage -r text -r lcov npm test"
+  },
+  "dependencies": {
+    "@shaxpir/squilt": "^1.1.0"
   }
 }
