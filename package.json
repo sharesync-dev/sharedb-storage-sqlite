@@ -1,5 +1,5 @@
 {
-  "name": "@shaxpir/sharedb-storage-sqlite",
+  "name": "@sharesync/sharedb-storage-sqlite",
   "version": "2.0.11",
   "description": "Shared SQLite storage components for ShareDB adapters",
   "main": "lib/index.js",
@@ -15,24 +15,24 @@
     "collaborative",
     "operational-transform"
   ],
-  "author": "Benji Smith <benji@shaxpir.com>",
+  "author": "Benji Smith <benji@redthre.ad>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git://github.com/shaxpir/sharedb-storage-sqlite.git"
+    "url": "git://github.com/sharesync-dev/sharedb-storage-sqlite.git"
   },
   "bugs": {
-    "url": "https://github.com/shaxpir/sharedb-storage-sqlite/issues"
+    "url": "https://github.com/sharesync-dev/sharedb-storage-sqlite/issues"
   },
-  "homepage": "https://github.com/shaxpir/sharedb-storage-sqlite#readme",
+  "homepage": "https://github.com/sharesync-dev/sharedb-storage-sqlite#readme",
   "engines": {
     "node": ">=14.0.0"
   },
   "peerDependencies": {
-    "@shaxpir/sharedb": ">=6.0.0"
+    "@sharesync/sharedb": ">=6.0.0"
   },
   "devDependencies": {
-    "@shaxpir/sharedb-storage-node-sqlite": "^2.0.0",
+    "@sharesync/sharedb-storage-node-sqlite": "^2.0.0",
     "chai": "^4.3.7",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
@@ -49,6 +49,9 @@
     "test-cover": "nyc --temp-dir=coverage -r text -r lcov npm test"
   },
   "dependencies": {
-    "@shaxpir/squilt": "^1.2.0"
+    "@redthreadlabs/squilt": "^1.2.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
