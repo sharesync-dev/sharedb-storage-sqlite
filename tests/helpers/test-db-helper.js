@@ -3,7 +3,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const BetterSqliteAdapter = require('@shaxpir/sharedb-storage-node-sqlite');
+const BetterSqliteAdapter = require('@sharesync/sharedb-storage-node-sqlite');
 
 class TestDbHelper {
   constructor(testName) {

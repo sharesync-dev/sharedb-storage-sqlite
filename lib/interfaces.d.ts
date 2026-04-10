@@ -4,9 +4,9 @@
  * These interfaces define the contract between ShareDB storage strategies
  * and SQLite database adapters. They must be copied VERBATIM to all three
  * packages:
- * - @shaxpir/sharedb-storage-sqlite
- * - @shaxpir/sharedb-storage-node-sqlite
- * - @shaxpir/sharedb-storage-expo-sqlite
+ * - @sharesync/sharedb-storage-sqlite
+ * - @sharesync/sharedb-storage-node-sqlite
+ * - @sharesync/sharedb-storage-expo-sqlite
  *
  * DO NOT MODIFY these interfaces in individual packages. Any changes must
  * be made here first, then propagated to all packages.

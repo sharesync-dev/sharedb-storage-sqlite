@@ -12,7 +12,7 @@ export interface ShareDBError {
 }
 
 // Import base types from ShareDB
-// In practice, consumers will have @shaxpir/sharedb as a peer dependency
+// In practice, consumers will have @sharesync/sharedb as a peer dependency
 export type DurableStorageCallback<T = any> = (error: ShareDBError | null, result?: T) => void;
 
 export interface DurableStorageRecord {

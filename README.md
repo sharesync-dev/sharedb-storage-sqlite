@@ -1,4 +1,4 @@
-# @shaxpir/sharedb-storage-sqlite
+# @sharesync/sharedb-storage-sqlite
 
 Shared SQLite storage components for ShareDB adapters. This library provides the core schema strategies and base classes used by both Node.js and React Native SQLite storage implementations.
 
@@ -25,12 +25,12 @@ Relational projections provide dramatic performance improvements for array field
 ## Installation
 
 ```bash
-npm install @shaxpir/sharedb-storage-sqlite
+npm install @sharesync/sharedb-storage-sqlite
 ```
 
 Note: This is a shared library. For actual usage, install one of:
-- `@shaxpir/sharedb-storage-node-sqlite` for Node.js applications
-- `@shaxpir/sharedb-storage-expo-sqlite` for React Native applications
+- `@sharesync/sharedb-storage-node-sqlite` for Node.js applications
+- `@sharesync/sharedb-storage-expo-sqlite` for React Native applications
 
 ## Features
 
@@ -77,16 +77,16 @@ This automatically maintains a `term_tag` table that mirrors the tags array, ena
 ## Architecture
 
 ```
-@shaxpir/sharedb-storage-sqlite (this package)
+@sharesync/sharedb-storage-sqlite (this package)
 ├── Schema Strategies (CollectionPerTableStrategy, etc.)
 ├── Base Classes (SqliteStorage)
 └── Interfaces (SqliteAdapter, SchemaStrategy, etc.)
     ↓
-@shaxpir/sharedb-storage-node-sqlite
+@sharesync/sharedb-storage-node-sqlite
 ├── Node.js SQLite Adapter (better-sqlite3)
 └── Uses shared components
     ↓
-@shaxpir/sharedb-storage-expo-sqlite
+@sharesync/sharedb-storage-expo-sqlite
 ├── React Native SQLite Adapter (expo-sqlite)
 └── Uses shared components
 ```
@@ -183,6 +183,6 @@ MIT
 
 ## Related Packages
 
-- [@shaxpir/sharedb](https://github.com/shaxpir/sharedb) - ShareDB fork with DurableStore support
-- [@shaxpir/sharedb-storage-node-sqlite](https://github.com/shaxpir/sharedb-storage-node-sqlite) - Node.js implementation
-- [@shaxpir/sharedb-storage-expo-sqlite](https://github.com/shaxpir/sharedb-storage-expo-sqlite) - React Native implementation
+- [@sharesync/sharedb](https://github.com/sharesync-dev/sharedb) - ShareDB fork with DurableStore support
+- [@sharesync/sharedb-storage-node-sqlite](https://github.com/sharesync-dev/sharedb-storage-node-sqlite) - Node.js implementation
+- [@sharesync/sharedb-storage-expo-sqlite](https://github.com/sharesync-dev/sharedb-storage-expo-sqlite) - React Native implementation

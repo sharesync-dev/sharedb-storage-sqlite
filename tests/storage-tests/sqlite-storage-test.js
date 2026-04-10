@@ -1,6 +1,6 @@
 const expect = require('chai').expect;
 const { SqliteStorage, DefaultSchemaStrategy, CollectionPerTableStrategy } = require('../..');
-const BetterSqliteAdapter = require('@shaxpir/sharedb-storage-node-sqlite');
+const BetterSqliteAdapter = require('@sharesync/sharedb-storage-node-sqlite');
 const fs = require('fs');
 const path = require('path');
 

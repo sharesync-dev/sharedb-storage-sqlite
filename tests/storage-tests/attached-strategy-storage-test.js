@@ -6,7 +6,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { BetterSqliteAdapter, AttachedBetterSqliteAdapter } = require('@shaxpir/sharedb-storage-node-sqlite');
+const { BetterSqliteAdapter, AttachedBetterSqliteAdapter } = require('@sharesync/sharedb-storage-node-sqlite');
 const { SqliteStorage, AttachedCollectionPerTableStrategy } = require('../..');
 const { cleanupTestDatabases } = require('./test-cleanup');
 

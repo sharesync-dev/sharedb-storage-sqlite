@@ -2,7 +2,7 @@ const expect = require('chai').expect;
 const SqliteStorage = require('..');
 const DefaultSchemaStrategy = require('..').DefaultSchemaStrategy;
 const CollectionPerTableStrategy = require('..').CollectionPerTableStrategy;
-const BetterSqliteAdapter = require('@shaxpir/sharedb-storage-node-sqlite');
+const BetterSqliteAdapter = require('@sharesync/sharedb-storage-node-sqlite');
 
 describe('Architectural Validation - SQLite Storage', function() {
 
