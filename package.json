@@ -1,6 +1,6 @@
 {
   "name": "@sharesync/sharedb-storage-sqlite",
-  "version": "2.0.11",
+  "version": "2.1.0",
   "description": "Shared SQLite storage components for ShareDB adapters",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
