@@ -29,10 +29,10 @@
     "node": ">=14.0.0"
   },
   "peerDependencies": {
-    "@sharesync/sharedb": ">=6.0.0"
+    "@sharesync/sharedb": "^6.1.0"
   },
   "devDependencies": {
-    "@sharesync/sharedb-storage-node-sqlite": "^2.0.0",
+    "@sharesync/sharedb-storage-node-sqlite": "^2.1.0",
     "chai": "^4.3.7",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
