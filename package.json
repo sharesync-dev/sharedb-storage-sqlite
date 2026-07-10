@@ -29,7 +29,7 @@
     "node": ">=14.0.0"
   },
   "peerDependencies": {
-    "@sharesync/sharedb": "^6.2.0"
+    "@sharesync/sharedb": "^6.3.0"
   },
   "devDependencies": {
     "@sharesync/sharedb-storage-node-sqlite": "^2.1.0",
